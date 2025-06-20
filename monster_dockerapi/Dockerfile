@@ -33,7 +33,7 @@ RUN python3 -m pip install -r requirements.txt
 WORKDIR /app
 
 # Copy your application code (if needed)
-COPY app.py /app/
+COPY *.py /app/
 
 # Define the entrypoint (optional)
 ENTRYPOINT ["python3", "app.py"]

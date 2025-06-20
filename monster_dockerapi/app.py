@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Literal
 import logging
@@ -9,6 +9,8 @@ import docker
 import psutil
 import pynvml
 import os
+
+from auth_utils import user_auth_dependency
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -30,13 +32,13 @@ user_id_to_session_id = {}
 
 host_ip = os.environ.get("HOST_IP", "localhost")
 
+
 class ContainerRequest(BaseModel):
-    user_id: str = "vikas@qblocks.cloud"  # Unique identifier for the user
     type: Literal["cpu", "gpu"] = "cpu"   # 'cpu' or 'gpu'
     cpu_count: int = 1
     memory: float = 1  # Memory in GB
     shm_size: str = "2gb"  # Shared memory size, e.g., '2gb'
-    image: str = "neo_docker_worker_cpu:latest"  # Docker image to run
+    image: Literal["qblockrepo/neo_agent_worker:cpu-latest", "qblockrepo/neo_agent_worker:gpu-latest"] = "qblockrepo/neo_agent_worker:cpu-latest"  # Docker image to run
 
 def check_resources(request: ContainerRequest) -> int:
     available_cpus = psutil.cpu_count()
@@ -64,10 +66,10 @@ def find_available_port():
         return s.getsockname()[1]  # Return the port number assigned.
 
 @app.post("/containers")
-async def create_container(request: ContainerRequest):
+async def create_container(request: ContainerRequest, user_info=Depends(user_auth_dependency)):
 
-    if request.user_id in user_id_to_session_id:
-        existing_session_id = user_id_to_session_id[request.user_id]
+    if user_info["user_id"] in user_id_to_session_id:
+        existing_session_id = user_id_to_session_id[user_info["user_id"]]
         existing_session = sessions[existing_session_id]
         return { 
             "error": "User already has an active session.",
@@ -110,7 +112,7 @@ async def create_container(request: ContainerRequest):
     sessions[session_id] = {
         'container': container,
         'last_active': datetime.now(),
-        'user_id': request.user_id,
+        'user_id': user_info["user_id"],
         'resources': {
             'type': request.type,
             'cpu_count': request.cpu_count,
@@ -120,16 +122,19 @@ async def create_container(request: ContainerRequest):
         }
     }
 
-    user_id_to_session_id[request.user_id] = session_id
+    user_id_to_session_id[user_info["user_id"]] = session_id
 
     if gpu_index is not None:
         gpu_usage[int(gpu_index)] = session_id
-    log_gpu_usage(request.user_id, session_id, gpu_index)
+    log_gpu_usage(user_info["user_id"], session_id, gpu_index)
 
     return {"container_id": container.id, "status": "created", "gpu_index": gpu_index, "host_port": available_port}
 
 @app.get("/containers/endpoint")
-async def get_connected_endpoint(user_id: str = Query(..., description="User ID to retrieve the endpoint for")):
+async def get_connected_endpoint(user_info=Depends(user_auth_dependency)):
+    user_id = user_info["user_id"]
+    if user_id not in user_id_to_session_id:
+        raise HTTPException(status_code=404, detail="No containers found for the specified user ID.")
     session_id = user_id_to_session_id[user_id]
     session = sessions[session_id]
     host_port = session['resources']['host_port']
@@ -140,8 +145,11 @@ async def get_connected_endpoint(user_id: str = Query(..., description="User ID 
     raise HTTPException(status_code=404, detail="No active session found for the specified user ID.")
 
 @app.get("/containers/utilization")
-async def get_container_utilization(user_id: str = Query(..., description="User ID to filter containers")):
+async def get_container_utilization(user_info=Depends(user_auth_dependency)):
     utilization = {}
+    user_id = user_info["user_id"]
+    if user_id not in user_id_to_session_id:
+        raise HTTPException(status_code=404, detail="No containers found for the specified user ID.")
     session_id = user_id_to_session_id[user_id]
     session = sessions[session_id]
     container = session['container']
@@ -169,10 +177,14 @@ async def get_container_utilization(user_id: str = Query(..., description="User 
 
 @app.get("/containers/logs")
 async def get_container_logs(
-    user_id: str = Query(..., description="User ID to filter containers"),
-    lines: int = Query(10, description="Number of lines to tail from logs")
+    lines: int = Query(10, description="Number of lines to tail from logs"), 
+    user_info=Depends(user_auth_dependency)
 ):
     logs = {}
+    user_id = user_info["user_id"]
+    if user_id not in user_id_to_session_id:
+        raise HTTPException(status_code=404, detail="No containers found for the specified user ID.")
+
     session_id = user_id_to_session_id[user_id]
     session = sessions[session_id]
     container = session['container']
@@ -186,8 +198,11 @@ async def get_container_logs(
     return logs
 
 @app.delete("/containers")
-async def terminate_container(user_id: str = Query(..., description="User ID to filter containers")):
+async def terminate_container(user_info=Depends(user_auth_dependency)):
+    user_id = user_info["user_id"]
     terminated_containers = []
+    if user_id not in user_id_to_session_id:
+        raise HTTPException(status_code=404, detail="No containers found for the specified user ID.")
     session_id = user_id_to_session_id[user_id]
     session = sessions[session_id]
     container = session['container']
@@ -200,6 +215,7 @@ async def terminate_container(user_id: str = Query(..., description="User ID to 
         del gpu_usage[int(session['resources']['gpu_index'])]
     
     del sessions[session_id]
+    del user_id_to_session_id[user_id]
     
     if not terminated_containers:
         raise HTTPException(status_code=404, detail="No containers found for the specified user ID.")

@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  api:
+    build: .
+    networks:
+      - my_network
+    ports:
+      - "8000:8000"
+  worker:
+    image: "qblockrepo/neo_docker_mgmt_api:latest"
+    networks:
+      - my_network
+    volumes:
+      -
+
+networks:
+  my_network:
+    driver: bridge

@@ -9,3 +9,4 @@ requests==2.28.2
 boto3
 botocore
 limits
+httpx

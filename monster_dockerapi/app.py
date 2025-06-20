@@ -1,16 +1,21 @@
 import asyncio
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query, Depends, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional
 import logging
 import socket
 import docker
 import psutil
 import pynvml
+import httpx
+import uuid
 import os
 
 from auth_utils import user_auth_dependency
+
+from docker.models.containers import Container
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -95,9 +100,12 @@ async def create_container(request: ContainerRequest, user_info=Depends(user_aut
         device_ids = None
 
     #command = ["tail", "-f", "/dev/null"]
+
+    container_name = uuid.uuid4()
     
-    container = client.containers.run(
+    container = client.containers.run( 
         request.image,
+        name = container_name,
         detach=True,
         shm_size=request.shm_size,
         cpuset_cpus=str(request.cpu_count),
@@ -105,20 +113,22 @@ async def create_container(request: ContainerRequest, user_info=Depends(user_aut
         ports={8000: available_port},
         device_requests=[
             docker.types.DeviceRequest(count=1, capabilities=gpu_capabilities, device_ids=device_ids)
-        ] if gpu_index is not None else []
+        ] if gpu_index is not None else [],
+        network="my_network"
     )
 
     session_id = str(container.id)
     sessions[session_id] = {
         'container': container,
         'last_active': datetime.now(),
+        'container_name': container_name,
         'user_id': user_info["user_id"],
         'resources': {
             'type': request.type,
             'cpu_count': request.cpu_count,
             'memory': request.memory,
             'gpu_index': gpu_index,
-            'host_port': available_port
+            'host_port': 8000
         }
     }
 
@@ -128,7 +138,7 @@ async def create_container(request: ContainerRequest, user_info=Depends(user_aut
         gpu_usage[int(gpu_index)] = session_id
     log_gpu_usage(user_info["user_id"], session_id, gpu_index)
 
-    return {"container_id": container.id, "status": "created", "gpu_index": gpu_index, "host_port": available_port}
+    return {"container_id": container.id, "status": "created", "gpu_index": gpu_index, "host_port": 8000}
 
 @app.get("/containers/endpoint")
 async def get_connected_endpoint(user_info=Depends(user_auth_dependency)):
@@ -138,9 +148,10 @@ async def get_connected_endpoint(user_info=Depends(user_auth_dependency)):
     session_id = user_id_to_session_id[user_id]
     session = sessions[session_id]
     host_port = session['resources']['host_port']
+    container_ip = session["container_ip"]
     return {
                 "user_id": user_id,
-                "connected_endpoint": f"http://{host_ip}:{host_port}"
+                "connected_endpoint": f"http://{container_ip}:{host_port}"
             }
     raise HTTPException(status_code=404, detail="No active session found for the specified user ID.")
 
@@ -197,6 +208,34 @@ async def get_container_logs(
         raise HTTPException(status_code=404, detail="No containers found for the specified user ID.")
     return logs
 
+def get_container_ip(container: Container, network_name: str = "bridge"):
+    """
+    Retrieves the IP address of the container within a specified Docker network.
+    Defaults to the 'bridge' network if no network name is provided.
+    Handles potential exceptions when network details are missing.
+    """
+    try:
+        container.reload()  # Ensure the container's information is up-to-date
+        return container.attrs['NetworkSettings']['Networks'][network_name]['IPAddress']
+    except KeyError as e:
+        logger.error(f"Network {network_name} not found in container settings: {e}")
+        raise HTTPException(status_code=500, detail=f"Network configuration error: {network_name} not found")
+
+def get_container_name(container: Container):
+    """
+    Retrieves the name of the container.
+    Handles potential exceptions when container details are incomplete.
+    """
+    try:
+        container.reload()  # Ensure the container's information is up-to-date
+        # Container names are stored in a list, get the first name
+        return container.attrs['Name'].strip('/')
+    except KeyError as e:
+        logger.error(f"Container name not found in container settings: {e}")
+        raise HTTPException(status_code=500, detail="Container name configuration error.")
+
+
+
 @app.delete("/containers")
 async def terminate_container(user_info=Depends(user_auth_dependency)):
     user_id = user_info["user_id"]
@@ -245,6 +284,57 @@ async def cleanup_containers():
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(cleanup_containers())
+
+class CommandRequest(BaseModel):
+    command: str
+    detach: bool = False
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: str  # 'running', 'completed', or 'failed'
+    exit_code: Optional[int] = None
+
+# Common proxy request handler
+async def handle_proxy_request(path: str, fastapi_request: Request, user_info, method: str, payload: Optional[dict] = None):
+    user_id = user_info["user_id"]
+
+    session_id = user_id_to_session_id[user_id]
+    session = sessions[session_id]
+    container_name = session["container_name"]
+    container_endpoint = f"http://{container_name}:8000/subprocess/{path}"
+    
+    # Fix here: We need to extract headers directly from the FastAPI request object
+    headers = {key: value for key, value in fastapi_request.headers.items() if key.lower() not in ["host", "content-length"]}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            if method == "POST" and payload is not None:
+                response = await client.post(container_endpoint, headers=headers, json=payload)
+            else:
+                response = await client.request(method, container_endpoint, headers=headers)
+
+            if 'logs' in path and method == "GET":
+                return StreamingResponse(response.iter_bytes(), status_code=response.status_code, headers=dict(response.headers))
+            return JSONResponse(content=response.json(), status_code=response.status_code, headers=dict(response.headers))
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"HTTP request failed: {exc}")
+
+# POST request for running commands
+@app.post("/subprocess/run")
+async def proxy_run_subprocess(command_request: CommandRequest, request: Request, user_info=Depends(user_auth_dependency)):
+    return await handle_proxy_request("run", request, user_info, "POST", command_request.dict())
+
+@app.get("/subprocess/status/{job_id}")
+async def proxy_get_status(job_id: str, request: Request, user_info=Depends(user_auth_dependency)):
+    return await handle_proxy_request(f"status/{job_id}", request, user_info, "GET")
+
+@app.get("/subprocess/logs/{job_id}")
+async def proxy_get_logs(job_id: str, request: Request, user_info=Depends(user_auth_dependency)):
+    return await handle_proxy_request(f"logs/{job_id}", request, user_info, "GET")
+
+@app.delete("/subprocess/terminate/{job_id}")
+async def proxy_terminate_subprocess(job_id: str, request: Request, user_info=Depends(user_auth_dependency)):
+    return await handle_proxy_request(f"terminate/{job_id}", request, user_info, "DELETE")
 
 if __name__ == "__main__":
     import uvicorn

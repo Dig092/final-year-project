@@ -288,6 +288,7 @@ async def startup_event():
 class CommandRequest(BaseModel):
     command: str
     detach: bool = False
+    workdir: Optional[str] = None 
 
 class JobStatusResponse(BaseModel):
     job_id: str
@@ -309,6 +310,10 @@ async def handle_proxy_request(path: str, fastapi_request: Request, user_info, m
     async with httpx.AsyncClient() as client:
         try:
             if method == "POST" and payload is not None:
+                print(100*'#')
+                print("payload", payload)
+                print("URL", container_endpoint)
+                print(100*'#')
                 response = await client.post(container_endpoint, headers=headers, json=payload)
             else:
                 response = await client.request(method, container_endpoint, headers=headers)
@@ -318,6 +323,18 @@ async def handle_proxy_request(path: str, fastapi_request: Request, user_info, m
             return JSONResponse(content=response.json(), status_code=response.status_code, headers=dict(response.headers))
         except httpx.RequestError as exc:
             raise HTTPException(status_code=500, detail=f"HTTP request failed: {exc}")
+
+class WriteCodeRequest(BaseModel):
+    filename: str
+    code: str
+
+# POST request for writing code
+@app.post("/subprocess/write_code")
+async def proxy_write_code(write_code_request: WriteCodeRequest, request: Request, user_info=Depends(user_auth_dependency)):
+    print(100*"$")
+    print("write_code_request",write_code_request)
+    print(100*"$")
+    return await handle_proxy_request("write_code", request, user_info, "POST", write_code_request.dict())
 
 # POST request for running commands
 @app.post("/subprocess/run")

@@ -12,6 +12,8 @@ import os
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI()
 client = docker.from_env()
 
@@ -26,7 +28,7 @@ gpu_usage = {}  # GPU index -> session_id
 
 user_id_to_session_id = {}
 
-host_ip = os.eviron.get("HOST_IP", "localhost")
+host_ip = os.environ.get("HOST_IP", "localhost")
 
 class ContainerRequest(BaseModel):
     user_id: str = "vikas@qblocks.cloud"  # Unique identifier for the user
@@ -63,6 +65,17 @@ def find_available_port():
 
 @app.post("/containers")
 async def create_container(request: ContainerRequest):
+
+    if request.user_id in user_id_to_session_id:
+        existing_session_id = user_id_to_session_id[request.user_id]
+        existing_session = sessions[existing_session_id]
+        return { 
+            "error": "User already has an active session.",
+            "container_id": existing_session_id,
+            "connected_endpoint": f"http://{host_ip}:{existing_session['resources']['host_port']}"
+        }
+
+
     resource_index = check_resources(request)
     if resource_index == -1:
         raise HTTPException(status_code=400, detail="Insufficient resources")
@@ -107,7 +120,7 @@ async def create_container(request: ContainerRequest):
         }
     }
 
-    user_id_to_session_id[user_id] = session_id
+    user_id_to_session_id[request.user_id] = session_id
 
     if gpu_index is not None:
         gpu_usage[int(gpu_index)] = session_id
@@ -118,7 +131,7 @@ async def create_container(request: ContainerRequest):
 @app.get("/containers/endpoint")
 async def get_connected_endpoint(user_id: str = Query(..., description="User ID to retrieve the endpoint for")):
     session_id = user_id_to_session_id[user_id]
-    session = sessions[session]
+    session = sessions[session_id]
     host_port = session['resources']['host_port']
     return {
                 "user_id": user_id,
@@ -130,7 +143,7 @@ async def get_connected_endpoint(user_id: str = Query(..., description="User ID 
 async def get_container_utilization(user_id: str = Query(..., description="User ID to filter containers")):
     utilization = {}
     session_id = user_id_to_session_id[user_id]
-    session = sessions[session]
+    session = sessions[session_id]
     container = session['container']
     stats = container.stats(stream=False)
     cpu_delta = stats['cpu_stats']['cpu_usage']['total_usage'] - stats['precpu_stats']['cpu_usage']['total_usage']
@@ -161,7 +174,7 @@ async def get_container_logs(
 ):
     logs = {}
     session_id = user_id_to_session_id[user_id]
-    session = sessions[session]
+    session = sessions[session_id]
     container = session['container']
     container_logs = container.logs(tail=lines).decode('utf-8')  # Tail the last N lines
     logs[session_id] = {
@@ -176,7 +189,7 @@ async def get_container_logs(
 async def terminate_container(user_id: str = Query(..., description="User ID to filter containers")):
     terminated_containers = []
     session_id = user_id_to_session_id[user_id]
-    session = sessions[session]
+    session = sessions[session_id]
     container = session['container']
     container.remove(force=True)
     terminated_containers.append(session_id)

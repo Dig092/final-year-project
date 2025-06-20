@@ -1,4 +1,12 @@
-FROM python:3.11.9-slim
+# Define a build argument for the target platform (CPU or GPU)
+ARG TARGET=cpu
+
+# Use conditional base image selection based on the TARGET argument
+FROM python:3.11.9-slim AS cpu-base
+FROM pytorch/pytorch:2.4.0-cuda12.4-cudnn9-devel AS gpu-base
+
+# Use a multi-stage build to select the correct base image
+FROM ${TARGET}-base as final
 
 WORKDIR /agent/
 

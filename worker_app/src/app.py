@@ -63,6 +63,8 @@ async def write_code(request: CodeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write code to file: {str(e)}")
 
+import select
+
 @app.post("/subprocess/run")
 async def run_subprocess(request: CommandRequest):
     if request.workdir:
@@ -74,13 +76,31 @@ async def run_subprocess(request: CommandRequest):
 
     if request.detach:
         # Run in the background and return immediately with a job_id
-        process = Popen(request.command, shell=True, cwd=workdir, stdout=PIPE, stderr=PIPE, text=True)
+        process = Popen(
+            request.command, 
+            shell=True, 
+            cwd=workdir, 
+            stdout=PIPE, 
+            stderr=PIPE, 
+            text=True,
+            bufsize=1,  # Line buffered
+            universal_newlines=True
+        )
         job_id = str(uuid.uuid4())
         jobs[job_id] = {'process': process, 'stdout': [], 'stderr': [], 'workdir': workdir}
         return {"job_id": job_id, "status": "Command running in background", "workdir": workdir}
     else:
         # Run synchronously and return output
-        process = Popen(request.command, shell=True, cwd=workdir, stdout=PIPE, stderr=PIPE, text=True)
+        process = Popen(
+            request.command, 
+            shell=True, 
+            cwd=workdir, 
+            stdout=PIPE, 
+            stderr=PIPE, 
+            text=True,
+            bufsize=1,  # Line buffered
+            universal_newlines=True
+        )
         stdout, stderr = process.communicate()
 
         # Cleanup the temporary directory if it was created for this job
@@ -96,23 +116,40 @@ def get_job_logs(job_id: str):
         process_info = jobs[job_id]
         process = process_info['process']
         
-        # If the process is still running, return whatever logs have been captured so far
+        # Check if process is still running
         if process.poll() is None:
-            # Attempt to read available output without blocking
-            stdout, stderr = process.stdout.read(), process.stderr.read()
-            if stdout:
-                process_info['stdout'].append(stdout)
-            if stderr:
-                process_info['stderr'].append(stderr)
-            return {"stdout": "".join(process_info['stdout']), "stderr": "".join(process_info['stderr'])}
+            # Use select to check if there's data to read from stdout and stderr
+            reads = [process.stdout, process.stderr]
+            readable, _, _ = select.select(reads, [], [], 0.1)  # 0.1 seconds timeout
+
+            if process.stdout in readable:
+                stdout = process.stdout.readline()
+                if stdout:
+                    process_info['stdout'].append(stdout)
+
+            if process.stderr in readable:
+                stderr = process.stderr.readline()
+                if stderr:
+                    process_info['stderr'].append(stderr)
+
+            return {
+                "stdout": "".join(process_info['stdout']),
+                "stderr": "".join(process_info['stderr']),
+                "status": "running"
+            }
         else:
             # If the process has completed, return all logs
             stdout, stderr = process.communicate()
             process_info['stdout'].append(stdout)
             process_info['stderr'].append(stderr)
-            return {"stdout": "".join(process_info['stdout']), "stderr": "".join(process_info['stderr'])}
+            return {
+                "stdout": "".join(process_info['stdout']),
+                "stderr": "".join(process_info['stderr']),
+                "status": "completed"
+            }
     else:
         raise HTTPException(status_code=404, detail="Job ID not found or logs unavailable")
+
 
 
 @app.delete("/subprocess/terminate/{job_id}")

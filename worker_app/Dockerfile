@@ -18,6 +18,8 @@ RUN python3 -m pip install -r requirements.txt
 
 COPY src/app.py /agent/
 
+COPY src/auth.py /agent/
+
 EXPOSE 8000
 
 ENTRYPOINT [ "python3","app.py"]

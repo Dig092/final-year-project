@@ -293,7 +293,12 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                             logs_all += status.get("stdout", "") or ""  # Avoid concatenating None
                             logs_all += status.get("stderr", "") or ""
                             exit_code = status.get("exit_code", 0)
-                            error_output = self._parse_errors(logs_all, lang) or ""  # Ensure error_output is always a string
+
+                            if exit_code != 0:
+                                error_output = self._parse_errors(logs_all, lang) or ""  # Ensure error_output is always a string
+                                if error_output == 'No errors detected. Execution was successful.':
+                                    error_output = "Most Probably is indent error! Please fix indent"
+                    
                             logger.info(f"Job {job_id} completed with exit code {exit_code}\n detailed_status: {status}")
                             break
                         elif status['status'] == 'running':
@@ -353,7 +358,8 @@ if __name__ == "__main__":
 pip install matplotlib
 """
 
-        long_running_python_code = """import matplotlib.pyplot as plt
+        long_running_python_code = """
+import matplotlib.pyplot as plt
 # Generate mock data
 x = [0, 1, 2, 3, 4]
 y = [0, 1, 4, 9, 16]

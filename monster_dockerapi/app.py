@@ -27,8 +27,14 @@ client = docker.from_env()
 # Initialize NVML for GPU information
 try:
     pynvml.nvmlInit()
+    print(100*'^')
+    print("GPU Found successfully!")
 except Exception as e:
     pynvml = None
+    print(100*'^')
+    print("GPUs Not found!")
+
+print(100*'^')
 
 #################################################
 #################################################
@@ -195,10 +201,12 @@ async def create_container(request: ContainerRequest, user_info=Depends(user_aut
 
     if request.type == "gpu":
         gpu_capabilities = [['gpu']]
-        device_ids = [gpu_index]
+        device_request = docker.types.DeviceRequest(
+            capabilities=gpu_capabilities,
+            device_ids=[gpu_index] if gpu_index is not None else None
+        )
     else:
-        gpu_capabilities = None
-        device_ids = None
+        device_request = None
 
     container_name = uuid.uuid4()
 
@@ -211,9 +219,7 @@ async def create_container(request: ContainerRequest, user_info=Depends(user_aut
         mem_limit=f"{request.memory}g",
         ports={8000: available_port},
         init=True,
-        device_requests=[
-            docker.types.DeviceRequest(count=1, capabilities=gpu_capabilities, device_ids=device_ids)
-        ] if gpu_index is not None else [],
+        device_requests=[device_request] if device_request else [],
         network="my_network"
     )
 
@@ -240,10 +246,14 @@ async def create_container(request: ContainerRequest, user_info=Depends(user_aut
     log_gpu_usage(user_info["user_id"], session_id, gpu_index)
 
     return {
-        "container_id": container.id, "status": "created", "gpu_index": gpu_index, "host_port": available_port,
+        "container_id": container.id,
+        "status": "created",
+        "gpu_index": gpu_index,
+        "host_port": available_port,
         "connected_endpoint": f"http://{host_ip}:{available_port}",
         "auth_token": "afcd6dd3-5657-4331-88f8-521f6569235d"
     }
+
 
 
 @app.get("/containers/endpoint", response_model=ConnectedEndpointResponse, status_code=200, responses={

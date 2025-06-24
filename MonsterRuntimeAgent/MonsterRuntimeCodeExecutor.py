@@ -343,7 +343,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         self.client.container_manager.terminate_container()
 
 
- 
+"" 
 # Usage Example: Working
 if __name__ == "__main__":
     # Initialize the client with the actual base URL and token
@@ -355,7 +355,7 @@ if __name__ == "__main__":
 
         dep_installation = """
 #!/bin/bash
-pip install matplotlib
+pip install scikit-learn numpy matplotlib
 """
 
         long_running_python_code = """
@@ -375,7 +375,53 @@ plt.savefig('plot.png')
 print('Plot saved as plot.png')
 """
 
-        result = executor.execute_code_blocks([CodeBlock(code=dep_installation, language="bash"), CodeBlock(code=long_running_python_code, language="python")])
+        gpu_example_code = """
+import cv2  # OpenCV
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Check if OpenCV was built with CUDA support
+if cv2.cuda.getCudaEnabledDeviceCount() == 0:
+    print("No CUDA-enabled GPU found.")
+    exit(200)
+
+# Generate a mock image (simple gradient image)
+mock_image = np.zeros((512, 512), dtype=np.uint8)
+cv2.rectangle(mock_image, (100, 100), (400, 400), (255), thickness=-1)  # Draw a white square
+
+# Upload the mock image to GPU
+gpu_image = cv2.cuda_GpuMat()
+gpu_image.upload(mock_image)
+
+# Apply Gaussian blur on the GPU
+blurred_gpu_image = cv2.cuda.createGaussianFilter(cv2.CV_8UC1, cv2.CV_8UC1, (15, 15), 0)
+gpu_blurred = blurred_gpu_image.apply(gpu_image)
+
+# Download the processed image back to the CPU
+blurred_image = gpu_blurred.download()
+
+# Plot the original and blurred images using Matplotlib
+plt.figure(figsize=(10, 5))
+
+# Original image
+plt.subplot(1, 2, 1)
+plt.title('Original Mock Image')
+plt.imshow(mock_image, cmap='gray')
+plt.axis('off')
+
+# Blurred image
+plt.subplot(1, 2, 2)
+plt.title('Blurred Image (GPU)')
+plt.imshow(blurred_image, cmap='gray')
+plt.axis('off')
+
+# Save the plot to a file
+plt.savefig('gpu_mock_image_processing_output.png')
+print('Plot saved as gpu_mock_image_processing_output.png')
+"""
+
+
+        result = executor.execute_code_blocks([CodeBlock(code=dep_installation, language="bash"), CodeBlock(code = gpu_example_code, language="python"), CodeBlock(code=long_running_python_code, language="python")])
         logger.info(f"Final Output:\n{100*'#'}\n{result.output}")
         logger.info(f"Saved Files: {result.artifacts}")
 

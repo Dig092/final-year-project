@@ -1,0 +1,47 @@
+# Use the official NVIDIA CUDA image as the base image (with Python 3.8 support)
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+
+# Set the environment variable to avoid prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update the package list and install dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    curl \
+    gnupg \
+    lsb-release \
+    software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker CLI
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && \
+    add-apt-repository \
+    "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && \
+    apt-get update && apt-get install -y docker-ce-cli && rm -rf /var/lib/apt/lists/*
+
+# Ensure the Python commands point to Python 3
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
+    update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+
+# Copy requirements file to container
+COPY requirements.txt .
+
+# Install Python dependencies including pynvml
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install -r requirements.txt
+
+# Set the working directory
+WORKDIR /app
+
+# Copy your application code
+COPY *.py /app/
+
+# Define the entrypoint to run your application
+ENTRYPOINT ["python3", "app.py"]
+
+# Set the NVIDIA runtime as the default runtime
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+

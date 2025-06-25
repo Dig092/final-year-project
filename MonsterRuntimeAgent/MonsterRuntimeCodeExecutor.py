@@ -347,15 +347,19 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 # Usage Example: Working
 if __name__ == "__main__":
     # Initialize the client with the actual base URL and token
-    client = MonsterNeoCodeRuntimeClient()
+    client = MonsterNeoCodeRuntimeClient(container_type = "gpu")
 
     try:
 
         executor = MonsterRemoteCommandLineCodeExecutor(client=client)
+        gpu_list = """
+#!/bin/bash
+nvidia-smi
+"""
 
         dep_installation = """
 #!/bin/bash
-pip install scikit-learn numpy matplotlib
+pip install scikit-learn numpy matplotlib opencv-python
 """
 
         long_running_python_code = """
@@ -375,8 +379,7 @@ plt.savefig('plot.png')
 print('Plot saved as plot.png')
 """
 
-        gpu_example_code = """
-import cv2  # OpenCV
+        gpu_example_code = """import cv2  # OpenCV
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -406,13 +409,13 @@ plt.figure(figsize=(10, 5))
 # Original image
 plt.subplot(1, 2, 1)
 plt.title('Original Mock Image')
-plt.imshow(mock_image, cmap='gray')
+#plt.imshow(mock_image, cmap='gray')
 plt.axis('off')
 
 # Blurred image
 plt.subplot(1, 2, 2)
 plt.title('Blurred Image (GPU)')
-plt.imshow(blurred_image, cmap='gray')
+#plt.imshow(blurred_image, cmap='gray')
 plt.axis('off')
 
 # Save the plot to a file
@@ -424,6 +427,7 @@ print('Plot saved as gpu_mock_image_processing_output.png')
         result = executor.execute_code_blocks([CodeBlock(code=dep_installation, language="bash"), CodeBlock(code = gpu_example_code, language="python"), CodeBlock(code=long_running_python_code, language="python")])
         logger.info(f"Final Output:\n{100*'#'}\n{result.output}")
         logger.info(f"Saved Files: {result.artifacts}")
+        import pdb;pdb.set_trace()
 
     except Exception as e:
         import traceback;traceback.print_exc()

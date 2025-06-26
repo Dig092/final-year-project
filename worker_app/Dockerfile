@@ -16,7 +16,7 @@ RUN python3 -m pip install --upgrade pip
 
 RUN python3 -m pip install -r requirements.txt
 
-COPY src/app.py /agent/
+COPY src/app_claude.py /agent/
 
 COPY src/auth.py /agent/
 

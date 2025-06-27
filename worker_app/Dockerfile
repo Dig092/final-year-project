@@ -8,7 +8,12 @@ FROM pytorch/pytorch:2.4.0-cuda12.4-cudnn9-devel AS gpu-base
 # Use a multi-stage build to select the correct base image
 FROM ${TARGET}-base as final
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 WORKDIR /agent/
+
+RUN apt update -y&& \
+    apt install python3-opencv ssh git libgl1-mesa-dev -y
 
 COPY requirements.txt /agent/
 

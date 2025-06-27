@@ -1,2 +1,12 @@
 fastapi
 uvicorn
+pycuda
+numpy
+pillow
+matplotlib
+plotly
+scikit-learn
+pandas
+huggingface_hub
+boto3
+awscli

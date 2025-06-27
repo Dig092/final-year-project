@@ -1,14 +1,13 @@
 import os
 import uuid
-import select
 import asyncio
+from asyncio import subprocess
 from pathlib import Path
 from typing import Optional, Dict, Any
-from subprocess import Popen, PIPE
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException, Depends
-from fastapi.responses import FileResponse, StreamingResponse
-from tempfile import TemporaryDirectory, NamedTemporaryFile
+from fastapi.responses import FileResponse
+from tempfile import TemporaryDirectory
 
 from auth import user_auth_dependency
 
@@ -47,8 +46,6 @@ class SessionRequest(BaseModel):
 
 class JobInfo(BaseModel):
     process: Any
-    stdout_pipe: Any
-    stderr_pipe: Any
     logs: Dict[str, str] = Field(default_factory=lambda: {"stdout": "", "stderr": ""})
 
 jobs: Dict[str, JobInfo] = {}
@@ -65,25 +62,30 @@ class PersistentTemporaryDirectory:
     def cleanup(self):
         self._temp_dir.cleanup()
 
-async def read_stream(stream, queue):
+async def read_stream(stream: asyncio.streams.StreamReader, job_id: str, stream_name: str):
     while True:
         line = await stream.readline()
         if not line:
             break
-        await queue.put(line)
+        line_str = line.decode().strip()
+        jobs[job_id].logs[stream_name] += line_str + "\n"
 
-async def log_stream(stream_name: str, job_id: str, queue):
-    while True:
-        try:
-            line = await asyncio.wait_for(queue.get(), timeout=1.0)
-            jobs[job_id].logs[stream_name] += line.decode()
-        except asyncio.TimeoutError:
-            # No new data in the last second, check if process is still running
-            if jobs[job_id].process.poll() is not None:
-                break
-        except Exception as e:
-            print(f"Error in log_stream: {e}")
-            break
+async def run_command(command: str, work_dir: str, job_id: str):
+    process = await asyncio.create_subprocess_shell(
+        command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        cwd=work_dir
+    )
+    
+    jobs[job_id] = JobInfo(process=process)
+    
+    stdout_task = asyncio.create_task(read_stream(process.stdout, job_id, "stdout"))
+    stderr_task = asyncio.create_task(read_stream(process.stderr, job_id, "stderr"))
+    
+    await process.wait()
+    await stdout_task
+    await stderr_task
 
 @app.post("/session/create", response_model=dict, status_code=201)
 def create_session(_ = Depends(user_auth_dependency)):
@@ -141,47 +143,20 @@ async def run_subprocess(request: CommandRequest, _ = Depends(user_auth_dependen
 
     if request.detach:
         job_id = str(uuid.uuid4())
-
-        process = Popen(
-            request.command,
-            shell=True,
-            cwd=work_dir,
-            stdout=PIPE,
-            stderr=PIPE,
-            bufsize=1,
-            universal_newlines=True
-        )
-
-        stdout_queue = asyncio.Queue()
-        stderr_queue = asyncio.Queue()
-
-        jobs[job_id] = JobInfo(
-            process=process,
-            stdout_pipe=process.stdout,
-            stderr_pipe=process.stderr,
-        )
-
-        asyncio.create_task(read_stream(process.stdout, stdout_queue))
-        asyncio.create_task(read_stream(process.stderr, stderr_queue))
-        asyncio.create_task(log_stream("stdout", job_id, stdout_queue))
-        asyncio.create_task(log_stream("stderr", job_id, stderr_queue))
-
+        asyncio.create_task(run_command(request.command, work_dir, job_id))
         return {"job_id": job_id, "status": "running"}
     else:
-        process = Popen(
-            request.command, 
-            shell=True, 
-            cwd=work_dir, 
-            stdout=PIPE, 
-            stderr=PIPE, 
-            text=True
+        process = await asyncio.create_subprocess_shell(
+            request.command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=work_dir
         )
-        stdout, stderr = process.communicate()
-
+        stdout, stderr = await process.communicate()
         return {
-            "stdout": stdout, 
-            "stderr": stderr, 
-            "exit_code": process.returncode, 
+            "stdout": stdout.decode(),
+            "stderr": stderr.decode(),
+            "exit_code": process.returncode,
             "workdir": request.workdir
         }
 
@@ -192,7 +167,7 @@ async def get_job_logs(job_id: str, _ = Depends(user_auth_dependency)):
     
     job_info = jobs[job_id]
     process = job_info.process
-    status = "running" if process.poll() is None else "completed"
+    status = "running" if process.returncode is None else "completed"
 
     return {
         "stdout": job_info.logs["stdout"],
@@ -201,16 +176,14 @@ async def get_job_logs(job_id: str, _ = Depends(user_auth_dependency)):
     }
 
 @app.delete("/subprocess/terminate/{job_id}", response_model=dict, status_code=200)
-def terminate_subprocess(job_id: str, _ = Depends(user_auth_dependency)):
+async def terminate_subprocess(job_id: str, _ = Depends(user_auth_dependency)):
     if job_id in jobs:
         process = jobs[job_id].process
         process.terminate()  # Sends SIGTERM
-
-        # Cleanup temporary directory if used
-        workdir = jobs[job_id].process.cwd
-        if workdir in temp_dirs:
-            temp_dirs[workdir].cleanup()
-            del temp_dirs[workdir]
+        try:
+            await asyncio.wait_for(process.wait(), timeout=5.0)
+        except asyncio.TimeoutError:
+            process.kill()  # Force kill if it doesn't terminate in 5 seconds
 
         del jobs[job_id]
         return {"job_id": job_id, "status": "terminated"}
@@ -218,19 +191,13 @@ def terminate_subprocess(job_id: str, _ = Depends(user_auth_dependency)):
         raise HTTPException(status_code=404, detail="Job ID not found")
 
 @app.get("/subprocess/status/{job_id}", response_model=JobStatus, status_code=200)
-def get_job_status(job_id: str, _ = Depends(user_auth_dependency)):
+async def get_job_status(job_id: str, _ = Depends(user_auth_dependency)):
     if job_id in jobs:
         job_info = jobs[job_id]
         process = job_info.process
-        if process.poll() is not None:  # Process has completed
+        if process.returncode is not None:  # Process has completed
             stdout = job_info.logs["stdout"]
             stderr = job_info.logs["stderr"]
-            workdir = process.cwd
-
-            # Cleanup temporary directory if used
-            if workdir in temp_dirs:
-                temp_dirs[workdir].cleanup()
-                del temp_dirs[workdir]
 
             del jobs[job_id]
 

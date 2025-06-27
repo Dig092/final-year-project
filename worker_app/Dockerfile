@@ -22,4 +22,4 @@ COPY src/auth.py /agent/
 
 EXPOSE 8000
 
-ENTRYPOINT [ "python3","app.py"]
+ENTRYPOINT [ "python3","app_claude.py"]

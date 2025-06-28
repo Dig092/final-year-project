@@ -359,7 +359,7 @@ nvidia-smi
 
         dep_installation = """
 #!/bin/bash
-pip install scikit-learn numpy matplotlib opencv-python
+pip install scikit-learn numpy matplotlib opencv-python pycuda
 """
 
         long_running_python_code = """
@@ -379,48 +379,65 @@ plt.savefig('plot.png')
 print('Plot saved as plot.png')
 """
 
-        gpu_example_code = """import cv2  # OpenCV
+        gpu_example_code = """
+import pycuda.autoinit
+import pycuda.driver as cuda
+from pycuda.compiler import SourceModule
 import numpy as np
-import matplotlib.pyplot as plt
 
-# Check if OpenCV was built with CUDA support
-if cv2.cuda.getCudaEnabledDeviceCount() == 0:
-    print("No CUDA-enabled GPU found.")
-    exit(200)
+# CUDA kernel
+cuda_code = \"""
+__global__ void vector_add(float *a, float *b, float *c, int n)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < n)
+    {
+        c[i] = a[i] + b[i];
+    }
+}
+\"""
 
-# Generate a mock image (simple gradient image)
-mock_image = np.zeros((512, 512), dtype=np.uint8)
-cv2.rectangle(mock_image, (100, 100), (400, 400), (255), thickness=-1)  # Draw a white square
+# Compile the CUDA kernel
+mod = SourceModule(cuda_code)
 
-# Upload the mock image to GPU
-gpu_image = cv2.cuda_GpuMat()
-gpu_image.upload(mock_image)
+# Get the kernel function
+vector_add = mod.get_function("vector_add")
 
-# Apply Gaussian blur on the GPU
-blurred_gpu_image = cv2.cuda.createGaussianFilter(cv2.CV_8UC1, cv2.CV_8UC1, (15, 15), 0)
-gpu_blurred = blurred_gpu_image.apply(gpu_image)
+# Set up the data
+n = 1000000
+a = np.random.randn(n).astype(np.float32)
+b = np.random.randn(n).astype(np.float32)
+c = np.zeros_like(a)
 
-# Download the processed image back to the CPU
-blurred_image = gpu_blurred.download()
+# Allocate memory on the GPU
+a_gpu = cuda.mem_alloc(a.nbytes)
+b_gpu = cuda.mem_alloc(b.nbytes)
+c_gpu = cuda.mem_alloc(c.nbytes)
 
-# Plot the original and blurred images using Matplotlib
-plt.figure(figsize=(10, 5))
+# Copy data to the GPU
+cuda.memcpy_htod(a_gpu, a)
+cuda.memcpy_htod(b_gpu, b)
 
-# Original image
-plt.subplot(1, 2, 1)
-plt.title('Original Mock Image')
-#plt.imshow(mock_image, cmap='gray')
-plt.axis('off')
+# Set up the grid and block sizes
+block_size = 256
+grid_size = (n + block_size - 1) // block_size
 
-# Blurred image
-plt.subplot(1, 2, 2)
-plt.title('Blurred Image (GPU)')
-#plt.imshow(blurred_image, cmap='gray')
-plt.axis('off')
+# Launch the kernel
+vector_add(
+    a_gpu,
+    b_gpu,
+    c_gpu,
+    np.int32(n),
+    block=(block_size, 1, 1),
+    grid=(grid_size, 1)
+)
 
-# Save the plot to a file
-plt.savefig('gpu_mock_image_processing_output.png')
-print('Plot saved as gpu_mock_image_processing_output.png')
+# Copy the result back to the host
+cuda.memcpy_dtoh(c, c_gpu)
+
+# Verify the result
+np.testing.assert_almost_equal(c, a + b)
+print("GPU computation successful!")
 """
 
 

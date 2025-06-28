@@ -444,7 +444,6 @@ print("GPU computation successful!")
         result = executor.execute_code_blocks([CodeBlock(code=dep_installation, language="bash"), CodeBlock(code = gpu_example_code, language="python"), CodeBlock(code=long_running_python_code, language="python")])
         logger.info(f"Final Output:\n{100*'#'}\n{result.output}")
         logger.info(f"Saved Files: {result.artifacts}")
-        import pdb;pdb.set_trace()
 
     except Exception as e:
         import traceback;traceback.print_exc()

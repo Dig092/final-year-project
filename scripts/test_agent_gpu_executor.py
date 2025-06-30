@@ -1,5 +1,10 @@
 import autogen
-import os
+
+from tools import MonsterNeoCodeRuntimeClient
+from MonsterRuntimeCodeExecutor import MonsterRemoteCommandLineCodeExecutor
+
+client = MonsterNeoCodeRuntimeClient(container_type = "gpu")
+monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
 
 # Configure GPT-4 model
 config_list_gpt4 = autogen.config_list_from_json(
@@ -29,12 +34,14 @@ engineer = autogen.AssistantAgent(
     name="Engineer",
     llm_config=gpt4_config,
     system_message="""Engineer. You follow an approved plan. You write Python/Shell code to solve tasks.
-1. Provide pip dependencies first, then Python code.
+1. Provide pip dependencies first, then Python code. 
 2. Ensure code uses efficient practices to avoid long runtimes and GPU resource exhaustion.
 3. Limit mock GPU usage to small examples to avoid heavy computational loads.
 4. Wrap code in proper code blocks to indicate it should be executed, avoid excessive loops, large datasets, or operations that could lead to high GPU usage.
 5. The user cannot modify the code, so the complete script must be functional.
-6. Any script that requires GPU should be capped to mock executions that simulate basic behavior without real GPU-intensive training.""",
+6. Any script that requires GPU should be capped to mock executions that simulate basic behavior without real GPU-intensive training.
+7. Never try to perform function calls like plt.show() or cv2.show() use savefig or save or similar.
+""",
 )
 
 # Scientist agent - no change necessary
@@ -55,7 +62,7 @@ Ensure the plan is efficient and doesn't involve code that may run too long or u
     llm_config=gpt4_config,
 )
 
-# Executor agent with Docker and additional execution guardrails
+# Executor agent with Docker and guardrails
 executor = autogen.UserProxyAgent(
     name="Executor",
     system_message="Executor. Execute the code written by the engineer and report the result.",
@@ -64,7 +71,8 @@ executor = autogen.UserProxyAgent(
         "last_n_messages": 3,
         "work_dir": "paper",
         "use_docker": True,  # Using docker for sandboxing
-        "execution_timeout": 120,  # 2 minute limit for code execution to prevent long runtimes
+        "executor": monster_executor
+        # Execution timeout is managed at a higher level via manager
     }
 )
 

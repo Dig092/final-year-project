@@ -11,7 +11,7 @@ monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
 config_list_gpt4 = autogen.config_list_from_json(
     "OAI_CONFIG_LIST",
     filter_dict={
-        "model": ["gpt-4"]
+        "model": ["llama-3.1-8b-instant"]
     }
 )
 

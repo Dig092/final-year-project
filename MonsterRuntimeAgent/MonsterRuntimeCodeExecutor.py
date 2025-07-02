@@ -307,7 +307,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                             stderr_logs = logs.get("stderr", "") or ""  # Ensure no NoneType
                             print(stdout_logs, end="")
                             print(stderr_logs, end="")
-                            logs_all += stdout_logs + stderr_logs
+                            logs_all = stdout_logs + stderr_logs
                         else:
                             logs_all += "Unexpected status received.\n"
                             logger.error(f"Job {job_id} encountered unexpected status: {status['status']}")

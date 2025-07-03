@@ -125,6 +125,10 @@ async def write_code(request: CodeRequest, _ = Depends(user_auth_dependency)):
 
     try:
         file_path = Path(work_dir) / request.filename
+        
+        if file_path.exists():
+            file_path.unlink()
+            
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(request.code)
         return {"file_path": str(file_path), "workdir": request.workdir, "status": "success"}

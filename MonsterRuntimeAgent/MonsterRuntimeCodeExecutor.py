@@ -10,7 +10,8 @@ from autogen.coding import CodeBlock, LocalCommandLineCodeExecutor
 from autogen.coding.utils import silence_pip
 from autogen.code_utils import _cmd
 from autogen.coding.local_commandline_code_executor import CommandLineCodeResult
-from tools import MonsterNeoCodeRuntimeClient
+
+from MonsterRuntimeAgent.Tools.RuntimeTools import MonsterNeoCodeRuntimeClient
 from requests.exceptions import ConnectionError, Timeout
 
 # Configure the logger
@@ -30,7 +31,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         "matplotlib": r"plt\.savefig\(['\"](.*?)['\"]",  # Detect plt.savefig('filename')
         "opencv": r"cv2\.imwrite\(['\"](.*?)['\"]",      # Detect cv2.imwrite('filename')
         "numpy": r"np\.save\(['\"](.*?)['\"]",           # Detect np.save('filename')
-        # Add other patterns if needed
+        # Add other patterns also !!!
     }
 
     def __init__(self, client: MonsterNeoCodeRuntimeClient, *args, **kwargs):
@@ -44,6 +45,21 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         super().__init__(*args, **kwargs)
         self.client = client
         atexit.register(self.cleanup)
+
+    def _extract_filename_from_code(self, code: str) -> Optional[str]:
+        """
+        Extracts the filename from the code if a filename comment is present.
+
+        Args:
+            code (str): The code block to search for a filename.
+
+        Returns:
+            Optional[str]: The extracted filename if found, otherwise None.
+        """
+        filename_match = re.search(r'#\s*Filename:\s*(\S+)', code)
+        if filename_match:
+            return filename_match.group(1)
+        return None
 
     def _detect_language(self, code: str) -> str:
         """
@@ -257,23 +273,50 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             
             for code_block in code_blocks:
                 lang = self._detect_language(code_block.code)
+                filename = self._extract_filename_from_code(code_block.code)
                 code = code_block.code
 
                 # Detect potential output files
                 detected_files = self._find_output_files(code)
                 logger.info(f"Detected output files: {detected_files}")
 
+                #if "pip" in code:
+                #    code = code.replace("!pip", "pip")
+                #    code = silence_pip(code, lang)
+                #    lang = "bash"
+                
                 if "pip" in code:
-                    code = code.replace("!pip", "pip")
-                    code = silence_pip(code, lang)
-                    lang = "bash"
+                    code_lines = code.splitlines()
+                    clean_code_lines = []
+                    for line in code_lines:
+                        if line.strip().startswith("pip install"):
+                            dependency_list = line.strip().split()[2:]  # Split and extract dependencies
+                            formatted_dependencies = []
+
+                            for dependency in dependency_list:
+                                # Preserve the version specifiers by quoting the dependency string
+                                if any(op in dependency for op in ['<', '>', '=', '!', '~']):
+                                    formatted_dependencies.append(f'"{dependency}"')
+                                else:
+                                    formatted_dependencies.append(dependency)
+
+                            formatted_line = f"pip install {' '.join(formatted_dependencies)}"
+                            clean_code_lines.append(silence_pip(formatted_line, "bash"))
+                        else:
+                            clean_code_lines.append(line)
+                    
+                    code = "\n".join(clean_code_lines)
+                    lang = "bash"   
+            
 
                 if lang not in self.SUPPORTED_LANGUAGES:
                     logger.error(f"Unsupported language: {lang}")
                     return CommandLineCodeResult(exit_code=1, output=f"Unsupported language: {lang}")
 
                 code_hash = md5(code.encode()).hexdigest()
-                filename = f"tmp_code_{code_hash}.{'py' if lang.startswith('python') else lang}"
+                
+                if filename == None:
+                    filename = f"tmp_code_{code_hash}.{'py' if lang.startswith('python') else lang}"
 
                 logger.info(f"Processing code block for language: {lang} with filename: {filename}")
                 # Write the code to the remote server
@@ -354,6 +397,7 @@ if __name__ == "__main__":
         executor = MonsterRemoteCommandLineCodeExecutor(client=client)
         gpu_list = """
 #!/bin/bash
+# Filename: nvidia_smi.sh
 nvidia-smi
 """
 

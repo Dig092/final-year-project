@@ -13,7 +13,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /agent/
 
 RUN apt update -y&& \
-    apt install python3-opencv ssh git libgl1-mesa-dev -y
+    apt install gcc g++ python3-opencv ssh git libgl1-mesa-dev -y
 
 COPY requirements.txt /agent/
 

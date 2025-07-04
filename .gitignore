@@ -89,3 +89,5 @@ desktop.ini
 /tmp/notebook/*
 
 *.bin
+
+scripts/tmp/*

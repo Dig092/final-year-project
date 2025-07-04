@@ -87,3 +87,5 @@ desktop.ini
 .cache/*
 
 /tmp/notebook/*
+
+*.bin

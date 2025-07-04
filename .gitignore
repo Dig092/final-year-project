@@ -90,6 +90,6 @@ desktop.ini
 
 *.bin
 
-scripts/tmp/*
+scripts/*
 
 OAI_CONFIG_LIST

@@ -3,18 +3,19 @@ import sys
 import time
 import autogen
 
-sys.path.append("/home/dev/MDockerRuntimeAPI/MonsterRuntimeAgent/")
+sys.path.append("/home/ubuntu/MDockerRuntimeAPI/MonsterRuntimeAgent/")
 
-
-from tools import MonsterNeoCodeRuntimeClient
 from autogen import register_function
-from MonsterRuntimeCodeExecutor import MonsterRemoteCommandLineCodeExecutor
 from autogen.agentchat.contrib.capabilities.transform_messages import TransformMessages
 from autogen.agentchat.contrib.capabilities.transforms import  MessageHistoryLimiter, MessageTokenLimiter
 from autogen.agentchat.contrib.capabilities.teachability import Teachability
 
-from HFDatasetScraper import search_datasets_tool, get_summary_tool, DatasetExpertAgent
+from MonsterRuntimeCodeExecutor import MonsterRemoteCommandLineCodeExecutor
+from Tools.RuntimeTools import MonsterNeoCodeRuntimeClient
+from Tools.HFDatasetScraper import get_summary_tool
+from Tools.NetScraper  import retreive_from_internet
 
+MODE = "CPU"
 
 print(100*'#')
 print(100*'#')
@@ -25,7 +26,7 @@ message = input("Enter Your Task here:")
 
 print(100*'#')
 print(100*'#')
-print("Let me give you a GPU Runtime!")
+print("Let me give you a CPU Runtime!")
 print(".")
 time.sleep(1)
 print(".")
@@ -35,7 +36,7 @@ time.sleep(1)
 print(".")
 time.sleep(0.5)
 print(".")
-client = MonsterNeoCodeRuntimeClient(container_type="gpu")
+client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower())
 monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
 
 print("Your GPU Runtime is ready for action, Proceeding!")
@@ -44,7 +45,6 @@ print(100*'#')
 #cmodel = "claude-3-5-sonnet-20240620"
 cmodel = "gpt-4o"
 model = "gpt-4o"
-
 truncate_messages = MessageTokenLimiter(max_tokens=96000, model = model)
 transform_messages = TransformMessages(transforms=[truncate_messages])
 
@@ -82,16 +82,21 @@ user_proxy = autogen.UserProxyAgent(
     code_execution_config=False,
 )
 
+if MODE == "CPU":
+    sand_box = "Consider that CPU is only with 4GB RAM and reduce batch size and dataset size to fit and run faster on this CPU container."
+else:
+    sand_box = "Consider that GPU is only with 40GB GPU VRAM and reduce batch size and dataset size to fit and run faster on GPU."
+
 engineer = autogen.AssistantAgent(
     name="Engineer",
     llm_config=gpt4_config,
-    system_message="""Engineer. You follow an approved plan. You write python/shell code to solve tasks. Give detailed pip dependencies first and then the python code, structure code blocks properly. Wrap the code in a code block that specifies the script type. The user can't modify your code. So do not suggest incomplete code which requires others to modify. Don't use a code block if it's not intended to be executed by the executor.
+    system_message=f"""Engineer. You follow an approved plan. You write python/shell code to solve tasks. Give detailed pip dependencies first and then the python code, structure code blocks properly. Wrap the code in a code block that specifies the script type. The user can't modify your code. So do not suggest incomplete code which requires others to modify. Don't use a code block if it's not intended to be executed by the executor.
 Don't include multiple code blocks in one response, unless second one in dependency installation. Do not ask others to copy and paste the result. Check the execution result returned by the executor.
 If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
 Dont suggest  running code that runs too long only suggest to work for development also dont run code that involves UI action like plt.show prefer saving the file. Code executor is enabled to perform GPU execution you can first fetch results of nvidia-smi and get the info of GPU attached.
 
 Dont try to run code that is long/forever running or stalling for stdin like fastapi, plt.show(), if task is very big reduce the scope to make it easy. 
-COnsider that GPU is only with 40GB GPU VRAM and reduce batch size and dataset size to fit and run faster on GPU>
+{sand_box}
 
 Always provide python pip depencies first and then code.
 
@@ -139,13 +144,14 @@ executor = autogen.UserProxyAgent(
     system_message="Executor. Execute the code written by the engineer and report the result.",
     human_input_mode="NEVER",
     code_execution_config={
-        "last_n_messages": 1,
+        "last_n_messages": 2,
         #"use_docker": True
         "executor":monster_executor
     },  # Please set use_docker=True if docker is available to run the generated code. Using docker is safer than running the generated code directly.
 )
 
 register_function(get_summary_tool, caller=engineer, executor=executor, name="get_summary", description="Get a search summary of datasets.")
+register_function(retreive_from_internet, caller=engineer, executor=executor, name="retreive_from_internet", description="Search internet and find context from internet.")
 
 groupchat = autogen.GroupChat(
     agents=[user_proxy, engineer, scientist, executor], messages=[], max_round=40

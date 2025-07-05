@@ -93,3 +93,5 @@ desktop.ini
 scripts/*
 
 OAI_CONFIG_LIST
+
+/backup/*

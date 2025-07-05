@@ -1,0 +1,12 @@
+[
+    {
+        "model": "gpt-4o",
+        "api_key": "Replace with openAI API key",
+        "tags": ["gpt-4o", "tool"]
+    },
+    {
+        "model": "claude-3-5-sonnet-20240620",
+        "api_key": "Replcae with Anthropic API key",
+        "api_type": "anthropic"
+    }
+]

@@ -28,8 +28,8 @@ if [ $? -ne 0 ]; then
 fi
 
 # Run the Docker container
-echo "Running Docker container for $TARGET..."
-docker run -dt -p 8000:8000 $IMAGE_NAME
+#echo "Running Docker container for $TARGET..."
+#docker run -it $IMAGE_NAME
 
 if [ $? -ne 0 ]; then
   echo "Failed to run Docker container."

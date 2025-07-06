@@ -31,3 +31,7 @@ python3.12, docker
     cd monster_dockerapi/
     bash build_and_run.sh
     ```
+
+10. Verify docker mgmt api docker running fine on local
+
+11. ```python3 run.py ``` # Interact with agent

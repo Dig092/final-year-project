@@ -10,3 +10,4 @@ pandas
 huggingface_hub
 boto3
 awscli
+kaggle

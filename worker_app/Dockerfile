@@ -10,6 +10,9 @@ FROM ${TARGET}-base as final
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+ENV KAGGLE_USERNAME=vikasramachandra
+ENV KAGGLE_KEY=f24a0e3c39e05518e41f50f12757ae73
+
 WORKDIR /agent/
 
 RUN apt update -y&& \

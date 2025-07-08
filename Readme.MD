@@ -24,7 +24,7 @@ python3.12, docker
 
 8.  ```bash
     cd worker_app/
-    bash build_and_run.sh cpu
+    bash build_and_run.sh gpu
     ```
 
 9.  ```bash

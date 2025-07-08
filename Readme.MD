@@ -34,4 +34,6 @@ python3.12, docker
 
 10. Verify docker mgmt api docker running fine on local
 
-11. ```python3 run.py ``` # Interact with agent
+11. Configure AWS Credentials
+
+12. ```python3 run.py ``` # Interact with agent

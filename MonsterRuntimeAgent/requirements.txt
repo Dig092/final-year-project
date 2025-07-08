@@ -4,3 +4,5 @@ crawl4ai
 nest-asyncio
 google-api-python-client
 requests
+chromadb
+datasets

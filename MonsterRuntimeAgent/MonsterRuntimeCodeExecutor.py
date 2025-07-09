@@ -86,8 +86,8 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             elif "bash" in code.lower():
                 return "bash"
 
-        logger.warning("Unable to detect language, defaulting to python.")
-        return "python"
+        logger.warning("Unable to detect language, defaulting to bash!")
+        return "bash"
 
     def _parse_errors(self, logs: str, language: str) -> str:
         """

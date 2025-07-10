@@ -28,6 +28,8 @@ COPY src/app_claude.py /agent/
 
 COPY src/auth.py /agent/
 
+RUN apt install -y gcc g++ zip unzip cmake 
+
 EXPOSE 8000
 
 ENTRYPOINT [ "python3","app_claude.py"]

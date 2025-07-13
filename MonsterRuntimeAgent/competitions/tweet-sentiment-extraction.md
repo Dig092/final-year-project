@@ -33,3 +33,5 @@ The dataset consists of tweets along with sentiment labels.
 - Dataset can be download from kaggle using `jp797498e/twitter-entity-sentiment-analysis`
 
 Assume runtime already has kaggle API Auth configured.
+
+Top score is 0.74 in score try to beat it!

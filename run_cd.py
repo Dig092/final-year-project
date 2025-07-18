@@ -93,13 +93,9 @@ else:
 
 user_proxy = autogen.UserProxyAgent(
     name="Admin",
-    system_message="""You are a human admin overseeing an AI research team. Your role is to:
-1. Interact with the Planner to discuss and refine the project plan.
-2. Approve or request modifications to the proposed plan.
-3. Provide final approval for plan execution.
-4. Offer additional context or clarification when needed.
-5. Evaluate the final output and suggest improvements or next steps.""",
+    system_message="A human admin. Interact with the planner to discuss the plan. Plan execution needs to be approved by this admin.",
     code_execution_config=False,
+    human_input_mode = "NEVER"
 )
 
 engineer = autogen.AssistantAgent(
@@ -116,6 +112,8 @@ engineer = autogen.AssistantAgent(
 8. Using appropriate tools like get_summary_tool for dataset retrieval when necessary.
 9. Optimizing code for the given hardware constraints (GPU or CPU).
 10. Ensuring data is downloaded to /tmp/data/ directory and managed efficiently.
+
+Use required attached huggingface data summary and internet scraping function tools as needed.
 
 Remember:
 - Always provide complete, end-to-end code for each execution.

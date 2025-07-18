@@ -140,7 +140,7 @@ scientist = autogen.AssistantAgent(
 
 planner = autogen.AssistantAgent(
     name="Planner",
-    system_message="""You are the Planner and Critic for the AI research team. Your duties include:
+    system_message="""You are the Planner for the AI research team. Your duties include:
 1. Developing comprehensive project plans based on the admin's requirements.
 2. Clearly defining roles and responsibilities for the Engineer and Scientist in each step.
 3. Revising plans based on feedback from the Admin and other team members.

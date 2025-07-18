@@ -453,7 +453,7 @@ async def cleanup_containers():
         current_time = datetime.now()
         for session_id in list(sessions.keys()):
             session = sessions[session_id]
-            if current_time - session['last_active'] > timedelta(minutes=30):
+            if current_time - session['last_active'] > timedelta(minutes=300):
                 session['container'].remove(force=True)
                 if 'gpu_index' in session['resources'] and session['resources']['gpu_index'] is not None:
                     log_entry = f"GPU {session['resources']['gpu_index']} freed up from session {session_id}"

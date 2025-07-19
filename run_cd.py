@@ -150,7 +150,17 @@ planner = autogen.AssistantAgent(
 7. Guiding other agents without directly executing code or functions.
 8. Maintaining a balance between innovation and practical implementation.
 9. Suggesting guardrails for the experimentation process to enhance reliability and reproducibility.
-10. Regularly reviewing progress and adjusting plans as needed.""",
+10. Regularly reviewing progress and adjusting plans as needed.
+
+Additionally:
+11. Provide clear evaluation metrics with targets to achieve or surpass for each project.
+12. Explore multiple approaches in depth before committing to a particular strategy.
+13. Approach problems with high-level reasoning, providing thorough justifications for chosen approaches.
+14. Develop a comprehensive set of requirements before exploring solution strategies.
+
+Work with critic on providing reward/punishment score to make the solution being developed by engineer and scientist better.
+
+""",
     llm_config=claude_config,
 )
 
@@ -164,7 +174,11 @@ critic = autogen.AssistantAgent(
 5. Identifying potential ethical concerns or limitations in the proposed approaches.
 6. Suggesting additional validation steps or control experiments when necessary.
 7. Evaluating the reproducibility and robustness of the implemented solutions.
-8. Assessing whether the outputs align with the original project goals and scientific standards.""",
+8. Assessing whether the outputs align with the original project goals and scientific standards.
+
+Give a positive/negative score as reward to engineer and scientist and push them to optimize for higher reward.
+Use above reward approach to help planner build better solution using the other agents.
+""",
     llm_config=gpt4_config,
 )
 

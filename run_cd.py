@@ -47,6 +47,13 @@ model = "gpt-4o"
 truncate_messages = MessageTokenLimiter(max_tokens=96000, model=model)
 transform_messages = TransformMessages(transforms=[truncate_messages])
 
+config_list_gemini = autogen.config_list_from_json(
+    "OAI_CONFIG_LIST",
+    filter_dict={
+        "model": ["gemini-1.5-pro-002"]
+    }
+)
+
 config_list_gpt4 = autogen.config_list_from_json(
     "OAI_CONFIG_LIST",
     filter_dict={
@@ -83,6 +90,12 @@ claude_config = {
 o1_config = {
     "cache_seed": 42,
     "config_list": config_list_o1,
+    "timeout": 30000,
+}
+
+gemini_config = {
+    "cache_seed": 42,
+    "config_list": config_list_gemini,
     "timeout": 30000,
 }
 
@@ -179,7 +192,7 @@ critic = autogen.AssistantAgent(
 Give a positive/negative score as reward to engineer and scientist and push them to optimize for higher reward.
 Use above reward approach to help planner build better solution using the other agents.
 """,
-    llm_config=gpt4_config,
+    llm_config=gemini_config,
 )
 
 executor = autogen.UserProxyAgent(

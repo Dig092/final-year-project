@@ -120,7 +120,7 @@ class DatasetExpertAgent:
         Returns:
             list: A list of column names.
         """
-        dataset = load_dataset(dataset_name, split='train')
+        dataset = load_dataset(dataset_name, split='train', trust_remote_code=True)
         return list(dataset.column_names)
 
     def get_sample_rows(self, dataset_name: str, num_rows: int = 3) -> list:

@@ -18,6 +18,20 @@ from requests.exceptions import ConnectionError, Timeout
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+def trim_logs(logs, max_size=30000):
+    if len(logs) <= max_size:
+        return logs
+    
+    # Keep the first and last 4000 characters
+    keep_size = 5000
+    start = logs[:keep_size]
+    end = logs[-keep_size:]
+    
+    # Add a message in the middle indicating trimming
+    middle_msg = f"\n... [Trimmed {len(logs) - 2*keep_size} characters] ...\n"
+    
+    return start + middle_msg + end
+
 class CommandLineCodeResultWithArtifact(CommandLineCodeResult):
     artifacts: Optional[List[str]]
 
@@ -348,7 +362,8 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                             if exit_code != 0:
                                 error_output = self._parse_errors(logs_all, lang) or ""  # Ensure error_output is always a string
                                 if error_output == 'No errors detected. Execution was successful.':
-                                    error_output = "Most Probably is indent error! Please fix indent"
+                                    error_output = "Most Probably execution got killed for OOM, also do check for any indent error!"
+                            
                     
                             logger.info(f"Job {job_id} completed with exit code {exit_code}\n detailed_status: {status}")
                             break
@@ -387,8 +402,8 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     logger.info(f"Session {session_id} closed successfully.")
                 except Exception as e:
                     logger.error(f"Error closing session: {e}")
-
-        return CommandLineCodeResultWithArtifact(exit_code=exit_code, output=logs_all + "\n" + error_output, code_file=filename, artifacts = saved_files)
+        trimmed_logs = trim_logs(logs_all)
+        return CommandLineCodeResultWithArtifact(exit_code=exit_code, output=logs_all + "\nError Output:" + error_output, code_file=filename, artifacts = saved_files)
 
     def cleanup(self):
         self.client.container_manager.terminate_container()

@@ -13,3 +13,5 @@ awscli
 kaggle
 transformers
 accelerate
+nltk
+

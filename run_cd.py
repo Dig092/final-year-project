@@ -153,7 +153,9 @@ scientist = autogen.AssistantAgent(
 
 planner = autogen.AssistantAgent(
     name="Planner",
-    system_message="""You are the Planner for the AI research team. Your duties include:
+    system_message="""You are the Planner for the AI research team. 
+    
+Your duties include:
 1. Developing comprehensive project plans based on the admin's requirements.
 2. Clearly defining roles and responsibilities for the Engineer and Scientist in each step.
 3. Revising plans based on feedback from the Admin and other team members.
@@ -172,6 +174,14 @@ Additionally:
 14. Develop a comprehensive set of requirements before exploring solution strategies.
 
 Work with critic on providing reward/punishment score to make the solution being developed by engineer and scientist better.
+
+Experimentation Process:
+
+1. Make sure to first properly specify requirements.
+2. Comprehensively list possible paths for experiments and choose best path to execute and find the optimal solution.
+3. Break problem into smaller chunks and conquer.
+4. If a problem is large scale it down and confirm strategy and then scale to solve the problem.
+
 
 """,
     llm_config=claude_config,

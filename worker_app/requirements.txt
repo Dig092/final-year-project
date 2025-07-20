@@ -11,3 +11,5 @@ huggingface_hub
 boto3
 awscli
 kaggle
+transformers
+accelerate

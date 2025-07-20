@@ -87,7 +87,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 return "bash"
 
         logger.warning("Unable to detect language, defaulting to bash!")
-        return "bash"
+        return None
 
     def _parse_errors(self, logs: str, language: str) -> str:
         """
@@ -273,6 +273,14 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             
             for code_block in code_blocks:
                 lang = self._detect_language(code_block.code)
+                if lang == None:
+                    error = """
+                    Couldnt detect either bash or python code.
+                    please start with shebang if bash.
+                    """
+                    logger.error(error)
+                    return CommandLineCodeResult(exit_code=1, output=error)
+
                 filename = self._extract_filename_from_code(code_block.code)
                 code = code_block.code
 

@@ -20,7 +20,7 @@ print(100*'#')
 print("Welcome to NeoV2 MonsterAPI Research Agent!\n I have a team of Engineer, GPU Code Executor, Research Scientist, Planner and a Critic! Go ahead and give me a AIML Development task!\n ")
 print(100*'#')
 
-path = "MonsterRuntimeAgent/competitions/tweet-sentiment-extraction.md"
+path = "MonsterRuntimeAgent/competitions/aerial-cactus-identification.md"
 
 message = open(path).read()
 
@@ -173,15 +173,11 @@ Additionally:
 13. Approach problems with high-level reasoning, providing thorough justifications for chosen approaches.
 14. Develop a comprehensive set of requirements before exploring solution strategies.
 
-Work with critic on providing reward/punishment score to make the solution being developed by engineer and scientist better.
-
 Experimentation Process:
 
 1. Make sure to first properly specify requirements.
 2. Comprehensively list possible paths for experiments and choose best path to execute and find the optimal solution.
 3. Break problem into smaller chunks and conquer.
-4. If a problem is large scale it down and confirm strategy and then scale to solve the problem.
-
 
 """,
     llm_config=claude_config,
@@ -222,6 +218,17 @@ executor = autogen.UserProxyAgent(
         "executor": monster_executor
     },
 )
+
+teachability = Teachability(
+            verbosity=0,  # 0 for basic info, 1 to add memory operations, 2 for analyzer messages, 3 for memo lists.
+                reset_db=True,
+                    path_to_db_dir="./tmp/notebook/teachability_db",
+                        recall_threshold=0.5,  # Higher numbers allow more (but less relevant) memos to be recalled.
+                        )
+
+teachability.add_to_agent(engineer)
+teachability.add_to_agent(planner)
+teachability.add_to_agent(critic)
 
 register_function(get_summary_tool, caller=engineer, executor=executor, name="get_summary", description="Get a search summary of datasets.")
 register_function(retreive_from_internet, caller=engineer, executor=executor, name="retreive_from_internet", description="Search internet and find context from internet.")

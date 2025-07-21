@@ -172,6 +172,7 @@ Additionally:
 12. Explore multiple approaches in depth before committing to a particular strategy.
 13. Approach problems with high-level reasoning, providing thorough justifications for chosen approaches.
 14. Develop a comprehensive set of requirements before exploring solution strategies.
+15. If engineer is stuck in loop break the loop and suggest how to proceed.
 
 Experimentation Process:
 
@@ -226,9 +227,9 @@ teachability = Teachability(
                         recall_threshold=0.5,  # Higher numbers allow more (but less relevant) memos to be recalled.
                         )
 
-teachability.add_to_agent(engineer)
+#teachability.add_to_agent(engineer)
 teachability.add_to_agent(planner)
-teachability.add_to_agent(critic)
+#teachability.add_to_agent(critic)
 
 register_function(get_summary_tool, caller=engineer, executor=executor, name="get_summary", description="Get a search summary of datasets.")
 register_function(retreive_from_internet, caller=engineer, executor=executor, name="retreive_from_internet", description="Search internet and find context from internet.")

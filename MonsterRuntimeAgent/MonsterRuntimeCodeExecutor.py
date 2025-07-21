@@ -403,7 +403,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 except Exception as e:
                     logger.error(f"Error closing session: {e}")
         trimmed_logs = trim_logs(logs_all)
-        return CommandLineCodeResultWithArtifact(exit_code=exit_code, output=logs_all + "\nError Output:" + error_output, code_file=filename, artifacts = saved_files)
+        return CommandLineCodeResultWithArtifact(exit_code=exit_code, output=trimmed_logs + "\nError Output:" + error_output, code_file=filename, artifacts = saved_files)
 
     def cleanup(self):
         self.client.container_manager.terminate_container()

@@ -307,7 +307,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 #    code = silence_pip(code, lang)
                 #    lang = "bash"
                 
-                if "pip" in code:
+                if "pip install" in code:
                     code_lines = code.splitlines()
                     clean_code_lines = []
                     for line in code_lines:

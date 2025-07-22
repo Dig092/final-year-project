@@ -244,80 +244,15 @@ teachability.add_to_agent(planner)
 register_function(get_summary_tool, caller=engineer, executor=executor, name="get_summary", description="Get a search summary of datasets.")
 register_function(retreive_from_internet, caller=engineer, executor=executor, name="retreive_from_internet", description="Search internet and find context from internet.")
 
-def custom_speaker_selection_func(last_speaker, groupchat):
-    agents = groupchat.agents
-    messages = groupchat.messages
-    
-    # Helper function to get an agent by name
-    def get_agent(name):
-        return next(agent for agent in agents if agent.name == name)
-    
-    user_proxy = get_agent("Admin")
-    planner = get_agent("Planner")
-    critic = get_agent("Critic")
-    scientist = get_agent("Scientist")
-    engineer = get_agent("Engineer")
-    executor = get_agent("Executor")
-    
-    # Initial planning phase
-    if len(messages) <= 1:
-        return planner
-    
-    if len(messages) == 1:
-        return critic
-    
-    if last_speaker == "critic":
-        return planner
-
-    # Planner and Critic discussion
-    if last_speaker in [planner, critic]:
-        if "PLAN FINALIZED" not in messages[-1]["content"]:
-            return critic if last_speaker == planner else planner
-        else:
-            return scientist  # Move to scientist consultation
-    
-    # Scientist consultation
-    if last_speaker == scientist:
-        if "APPROVED" in messages[-1]["content"]:
-            return engineer  # Move to engineering phase
-        else:
-            return planner  # Return to planning if not approved
-    
-    # Engineering phase
-    if last_speaker == engineer:
-        if "```python" in messages[-1]["content"] or "```bash" in messages[-1]["content"]:
-            return executor  # Execute the code
-        else:
-            return engineer  # Continue engineering discussion
-    
-    # Execution phase
-    if last_speaker == executor:
-        if "exitcode: 0" in messages[-1]["content"]:
-            return critic  # Successful execution, move to evaluation
-        else:
-            return engineer  # Error in execution, return to engineer
-    
-    # Evaluation phase
-    if last_speaker == critic and "EVALUATION COMPLETE" in messages[-1]["content"]:
-        return user_proxy  # Final approval or further instructions
-    
-    # User proxy interactions
-    if last_speaker == user_proxy:
-        if "APPROVED" in messages[-1]["content"]:
-            return planner  # Start a new planning cycle
-        elif "UPDATE REQUIRED" in messages[-1]["content"]:
-            return engineer  # Return to engineering for updates
-        else:
-            return planner  # Default to planner for clarification
-    
-    # Default behavior
-    return None  # Let the system choose the next speaker
-
 groupchat = autogen.GroupChat(
     agents=[user_proxy, planner, scientist, engineer, executor, critic],
     messages=[],
     max_round=80,
-    speaker_selection_method=custom_speaker_selection_func,
+    select_speaker_message_template = """You are in a role play game. The following roles are available:
+                {roles}.
+                Read the following conversation.
+                Then select the next role from {agentlist} to play. Only return the role.""",
+    select_speaker_prompt_template = "Read the above conversation. Then select the next role from {agentlist} to play. Only return the role."
 )
 manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=gpt4_config)
 

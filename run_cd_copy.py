@@ -258,7 +258,13 @@ def custom_speaker_selection_func(last_speaker, groupchat):
     # Initial planning phase
     if len(messages) <= 1:
         return planner
+
+    if len(messages) == 1:
+        return critic
     
+    if last_speaker == "critic":
+        return planner
+
     # Planner and Critic discussion
     if last_speaker in [planner, critic]:
         if "PLAN FINALIZED" not in messages[-1]["content"]:

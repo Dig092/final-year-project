@@ -207,7 +207,11 @@ Use above reward approach to help planner build better solution using the other 
 
 Collaborate with the Planner to finalize the plan. Use 'PLAN FINALIZED' when you and the Planner agree on the final plan.
 After reviewing results, use 'EVALUATION COMPLETE' followed by your assessment and any recommendations.""",
+<<<<<<< HEAD
     llm_config=gemini_config,
+=======
+    llm_config=gpt4_config,
+>>>>>>> a1d07d1 (Fix)
 )
 
 executor = autogen.UserProxyAgent(
@@ -258,7 +262,7 @@ def custom_speaker_selection_func(last_speaker, groupchat):
     # Initial planning phase
     if len(messages) <= 1:
         return planner
-
+    
     if len(messages) == 1:
         return critic
     

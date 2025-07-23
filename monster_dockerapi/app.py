@@ -451,16 +451,45 @@ def log_gpu_usage(user_id, session_id, gpu_index):
 async def cleanup_containers():
     while True:
         current_time = datetime.now()
+        logger.info("Starting periodic container cleanup")
+        
         for session_id in list(sessions.keys()):
-            session = sessions[session_id]
-            if current_time - session['last_active'] > timedelta(minutes=300):
-                session['container'].remove(force=True)
-                if 'gpu_index' in session['resources'] and session['resources']['gpu_index'] is not None:
-                    log_entry = f"GPU {session['resources']['gpu_index']} freed up from session {session_id}"
-                    logger.info(log_entry)
-                    del gpu_usage[int(session['resources']['gpu_index'])]
-                del sessions[session_id]
-        await asyncio.sleep(600)
+            try:
+                session = sessions[session_id]
+                if (current_time - session['last_active']) > timedelta(minutes=30):
+                    logger.info(f"Cleaning up inactive session {session_id}")
+                    
+                    # Remove container
+                    try:
+                        session['container'].remove(force=True)
+                        logger.info(f"Container for session {session_id} removed successfully")
+                    except docker.errors.NotFound:
+                        logger.warning(f"Container for session {session_id} not found, may have been removed externally")
+                    except Exception as e:
+                        logger.error(f"Error removing container for session {session_id}: {str(e)}")
+                    
+                    # Free GPU resources if used
+                    if 'gpu_index' in session['resources'] and session['resources']['gpu_index'] is not None:
+                        gpu_index = int(session['resources']['gpu_index'])
+                        if gpu_index in gpu_usage:
+                            del gpu_usage[gpu_index]
+                            logger.info(f"GPU {gpu_index} freed up from session {session_id}")
+                    
+                    # Clean up user mapping
+                    user_id = session['user_id']
+                    if user_id in user_id_to_session_id and user_id_to_session_id[user_id] == session_id:
+                        del user_id_to_session_id[user_id]
+                        logger.info(f"User mapping removed for user {user_id}")
+                    
+                    # Remove session
+                    del sessions[session_id]
+                    logger.info(f"Session {session_id} removed from active sessions")
+            
+            except Exception as e:
+                logger.error(f"Unexpected error during cleanup of session {session_id}: {str(e)}")
+        
+        logger.info("Periodic container cleanup completed")
+        await asyncio.sleep(300)  # Run every 5 minutes
 
 @app.on_event("startup")
 async def startup_event():

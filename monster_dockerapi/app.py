@@ -456,7 +456,7 @@ async def cleanup_containers():
         for session_id in list(sessions.keys()):
             try:
                 session = sessions[session_id]
-                if (current_time - session['last_active']) > timedelta(minutes=3):
+                if (current_time - session['last_active']) > timedelta(minutes=300):
                     logger.info(f"Cleaning up inactive session {session_id}")
                     
                     # Remove container

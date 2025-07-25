@@ -63,7 +63,7 @@ def get_secret(secret_name: str, region_name: str) -> str:
 
     return json.loads(get_secret_value_response['SecretString'])
 
-environment = os.environ.get('ENVIRONMENT', "prod")
+environment = os.environ.get('ENVIRONMENT', "staging")
 
 if environment == "staging":
     aws_region = "ap-south-1" # Mumbai

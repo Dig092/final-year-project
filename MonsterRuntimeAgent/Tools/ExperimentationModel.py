@@ -1,6 +1,10 @@
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
+from google.generativeai.types import GenerationConfig
+
+from MonsterRuntimeAgent.Tools.Gemini import GeminiContentGenerator
+from MonsterRuntimeAgent.Tools.NetScraper import retreive_from_internet
 
 
 class ProblemType(str, Enum):
@@ -26,6 +30,8 @@ class ExperimentPlan(BaseModel):
     target: str = Field(..., description="What the experiment aims to predict/detect/solve")
     user_input: str = Field(..., description="Original user provided input text")
     problem_type: ProblemType = Field(..., description="Type of ML/AI problem")
+    optimization_metric: List[str] = Field(..., description= "List of metrics to optimize as part of problem, like RMSE, Jaccard Score e.t.c!")
+    optimization_target: Dict[str, float] = Field(..., description = "Decided metrics and modest target values to hit, if user specified something use them!")
     
     # Compute requirements
     node_type: NodeType = Field(
@@ -69,13 +75,23 @@ class ExperimentPlan(BaseModel):
         description="Target values for optimization metrics"
     )
 
+    key_additional_notes: Optional[str] = Field(None, description="Use this field to store important key information provided in prompt \
+                                                from background research and e.t.c! Use this to seed/store required additional information \
+                                                to solve the problem statement. Additional dataset links.")
+
     class Config:
         validate_assignment = True
 
 class ExperimentPlanner:
     def __init__(self):
         """Initialize the experiment planner."""
-        pass
+        self.generator = GeminiContentGenerator(
+            generation_config=GenerationConfig(
+                temperature=0.7,
+                top_p=0.8,
+                top_k=40,
+            )
+        )
 
     def plan_from_prompt(self, prompt: str) -> ExperimentPlan:
         """
@@ -87,19 +103,17 @@ class ExperimentPlanner:
         Returns:
             ExperimentPlan: Compute and optimization requirements
         """
-        # This is where you'd integrate with Gemini or other LLM
-        # For now, returning an example plan
-        return ExperimentPlan(
-            target="customer_churn",
-            user_input=prompt,
-            problem_type=ProblemType.CLASSIFICATION,
-            node_type=NodeType.GPU,
-            gpu_size_gb=16,
-            gpu_count=1,
-            cpu_memory_gb=32,
-            optimization_metrics=["accuracy", "recall"],
-            optimization_targets={"accuracy": 0.85, "recall": 0.90}
-        )
+        background_research = self.perform_background_research(prompt)
+
+        formatted_prompt = f"""
+        user_prompt: 
+        {prompt}
+        
+        background information:
+        {background_research}
+        """
+        experiment = self.generator.generate_structured_content(formatted_prompt, ExperimentPlan)
+        return experiment
 
     def display_plan(self, plan: ExperimentPlan) -> None:
         """Display the experiment plan in a readable format."""
@@ -120,6 +134,17 @@ class ExperimentPlanner:
             for metric in plan.optimization_metrics:
                 target = plan.optimization_targets.get(metric) if plan.optimization_targets else None
                 print(f"- {metric}: {target if target else 'Not specified'}")
+
+        print("key Additional Notes!")
+        print(100*('-'))
+        print(plan.key_additional_notes)
+        print(100*('-'))
+
+    def perform_background_research(self, prompt):
+        return retreive_from_internet(prompt)
+
+    def tree_of_thoughts_plan(self):
+        pass
 
 def main():
     """Example usage of the experiment planner."""
@@ -142,9 +167,12 @@ def main():
         print(f"\nProcessing experiment {i}...")
         try:
             plan = planner.plan_from_prompt(prompt)
+            import pdb;pdb.set_trace()
             planner.display_plan(plan)
         except Exception as e:
             print(f"Error planning experiment {i}: {e}")
+        finally:
+            break
         print("\n" + "=" * 50)
 
 if __name__ == "__main__":

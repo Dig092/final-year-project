@@ -7,6 +7,113 @@ from MonsterRuntimeAgent.Tools.Gemini import GeminiContentGenerator
 from MonsterRuntimeAgent.Tools.NetScraper import retreive_from_internet
 
 
+import operator
+from typing import Annotated
+from typing_extensions import TypedDict
+
+from langchain_openai import ChatOpenAI
+
+from langgraph.types import Send
+from langgraph.graph import END, StateGraph, START
+
+from pydantic import BaseModel, Field
+
+
+model = ChatOpenAI(model="gpt-4o")
+
+ideation_prompt = """
+                  I have a problem related to Machine Learning 
+                  here is the problem:{input}.
+                  Act as a ML Engineer and plan to solve the problem.
+                  Come up with suitable methods to solve the problem.
+                  Ideate the main approach.
+                  For example for the iris-flowers datasets [decision tree classifiers, SVM classifiers, Perceptron with softmax and corss entropy] is a valid list of ideas.
+                  Just the name of various ways to approach the problem is enough.
+                  Do not generate code just plan how to solve the problem.
+                  Generate a comma separated list of between 3 ideas on how to solve the problem.
+                  """
+
+expansion_prompt = """
+                  I have a problem related to Machine Learning.
+                  Here is an idea to solve the problem {idea}.
+                  Act as a Lead AI scientist and plan the problem.
+                  consider the following factors below.
+                  Factors : {perfect_factors}
+                  create a detailed plan on how to solve the problem.
+                  do not generate any code.
+                  """
+
+evaluation_prompt = """ Given Below are a list of ideas on how to solve the problem.
+                     Ideas:{detailed_plan}.
+                     For each of the proposed solutions, evaluate their potential.
+                     Consider their pros and cons, initial effort needed, implementation difficulty, potential challenges, and the expected outcomes.
+                     Select the best one! Return the ID of the best one.
+                     """ 
+
+class Idea(BaseModel):
+    ideas: list[str]
+
+class Plan(BaseModel):
+    plan: str
+
+class Solution(BaseModel):
+    id: int = Field(description="Index of the best plan, starting with 0", ge=0)
+
+class OverallState(TypedDict):
+    input: str
+    ideas: list[str]
+    plans: Annotated[list, operator.add]
+    best_plan: str
+
+class IdeaState(TypedDict):
+    idea: str
+
+def generate_ideas(state: OverallState):
+    prompt = ideation_prompt.format(input=state["input"])
+    response = model.with_structured_output(Idea).invoke(prompt)
+    return {"ideas": response.ideas}
+
+def generate_plan(state: IdeaState):
+  perfect_factors =  """1. Idea 
+                        2. Dependncies 
+                        3. Type of ML problem(supervised,unsupervied,Reinforcement),
+                        4. Potential models to use, 
+                        5. Task at hand(clasifcation,regression,object detection ...),
+                        6. Framework to use
+                        7. How to load and prepare the dataset?
+                        8. Dataset specific hyperparameters like batch size,
+                        9. Trining hyperparameters like loss,optimizer, number of epochs and so on,
+                        10. Evaluating the model after training,
+                        11. Inference on the test samples"""
+  prompt = expansion_prompt.format(idea=state["idea"], perfect_factors=perfect_factors)
+  response = model.with_structured_output(Plan).invoke(prompt)
+  return {"plans": [response.plan]}
+
+def continue_to_plans(state: OverallState):
+    # We will return a list of `Send` objects
+    # Each `Send` object consists of the name of a node in the graph
+    # as well as the state to send to that node
+    return [Send("generate_plan", {"idea": i}) for i in state["ideas"]]
+
+def rank_plans(state: OverallState):
+    d_plan = "\n\n".join(state["plans"])
+    prompt = evaluation_prompt.format(detailed_plan=d_plan)
+    response = model.with_structured_output(Solution).invoke(prompt)
+    return {"best_plan": state["plans"][response.id]}
+
+graph = StateGraph(OverallState)
+graph.add_node("generate_ideas", generate_ideas)
+graph.add_node("generate_plan", generate_plan)
+graph.add_node("rank_plans", rank_plans)
+
+graph.add_edge(START, "generate_ideas")
+graph.add_conditional_edges("generate_ideas", continue_to_plans, ["generate_plan"])
+graph.add_edge("generate_plan", "rank_plans")
+graph.add_edge("rank_plans", END)
+
+app = graph.compile()
+
+
 class ProblemType(str, Enum):
     CLASSIFICATION = "classification"
     REGRESSION = "regression"
@@ -104,13 +211,16 @@ class ExperimentPlanner:
             ExperimentPlan: Compute and optimization requirements
         """
         background_research = self.perform_background_research(prompt)
-
+        tot_plan =  self.tree_of_thoughts_plan(prompt)
         formatted_prompt = f"""
         user_prompt: 
         {prompt}
         
         background information:
         {background_research}
+
+        tot_plan:
+        {tot_plan}
         """
         experiment = self.generator.generate_structured_content(formatted_prompt, ExperimentPlan)
         return experiment
@@ -143,8 +253,11 @@ class ExperimentPlanner:
     def perform_background_research(self, prompt):
         return retreive_from_internet(prompt)
 
-    def tree_of_thoughts_plan(self):
-        pass
+    def tree_of_thoughts_plan(self,problem):
+        state = []
+        for s in app.stream({"input":problem}):
+            state.append(s)
+        return state[-1]["rank_plans"]["best_plan"]
 
 def main():
     """Example usage of the experiment planner."""

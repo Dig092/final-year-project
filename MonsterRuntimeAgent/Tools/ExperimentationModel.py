@@ -226,29 +226,31 @@ class ExperimentPlanner:
         return experiment
 
     def display_plan(self, plan: ExperimentPlan) -> None:
+        x = ""
         """Display the experiment plan in a readable format."""
-        print("\n=== Experiment Plan ===")
-        print(f"Target: {plan.target}")
-        print(f"Problem Type: {plan.problem_type.value}")
-        print("\nCompute Requirements:")
-        print(f"Node Type: {plan.node_type.value.upper()}")
+        x+="\n=== Experiment Plan ==="
+        x+=f"Target: {plan.target}\n"
+        x+=f"Problem Type: {plan.problem_type.value}\n"
+        x+="\nCompute Requirements:\n"
+        x+=f"Node Type: {plan.node_type.value.upper()}\n"
         
         if plan.node_type == NodeType.GPU:
-            print(f"GPU Memory: {plan.gpu_size_gb}GB")
-            print(f"GPU Count: {plan.gpu_count}")
+            x+=f"GPU Memory: {plan.gpu_size_gb}GB\n"
+            x+=f"GPU Count: {plan.gpu_count}\n"
         
-        print(f"CPU Memory: {plan.cpu_memory_gb}GB")
+        x+=f"CPU Memory: {plan.cpu_memory_gb}GB\n"
         
         if plan.optimization_metrics:
-            print("\nOptimization Goals:")
+            x+="\nOptimization Goals:\n"
             for metric in plan.optimization_metrics:
                 target = plan.optimization_targets.get(metric) if plan.optimization_targets else None
-                print(f"- {metric}: {target if target else 'Not specified'}")
+                x+=f"- {metric}: {target if target else 'Not specified'}\n"
 
-        print("key Additional Notes!")
-        print(100*('-'))
-        print(plan.key_additional_notes)
-        print(100*('-'))
+        x+="key Additional Notes!\n"
+        x+=100*('-')+'\n'
+        x+=plan.key_additional_notes
+        x+=100*('-')+'\n'
+        return x
 
     def perform_background_research(self, prompt):
         return retreive_from_internet(prompt)
@@ -259,34 +261,35 @@ class ExperimentPlanner:
             state.append(s)
         return state[-1]["rank_plans"]["best_plan"]
 
-def main():
-    """Example usage of the experiment planner."""
-    planner = ExperimentPlanner()
+# def main():
+#     """Example usage of the experiment planner."""
+#     planner = ExperimentPlanner()
     
-    prompts = [
-        """
-        Build a customer churn prediction model using historical data.
-        Need at least 85% accuracy and 90% recall.
-        Data includes usage patterns, billing info, and support tickets.
-        """,
-        """
-        Create an object detection model for finding defects in circuit boards.
-        Using 4K camera images, need real-time processing.
-        Target 95% detection rate with low false positives.
-        """
-    ]
+#     prompts = [
+#         """
+#         Build a customer churn prediction model using historical data.
+#         Need at least 85% accuracy and 90% recall.
+#         Data includes usage patterns, billing info, and support tickets.
+#         """,
+#         """
+#         Create an object detection model for finding defects in circuit boards.
+#         Using 4K camera images, need real-time processing.
+#         Target 95% detection rate with low false positives.
+#         """
+#     ]
     
-    for i, prompt in enumerate(prompts, 1):
-        print(f"\nProcessing experiment {i}...")
-        try:
-            plan = planner.plan_from_prompt(prompt)
-            import pdb;pdb.set_trace()
-            planner.display_plan(plan)
-        except Exception as e:
-            print(f"Error planning experiment {i}: {e}")
-        finally:
-            break
-        print("\n" + "=" * 50)
+#     for i, prompt in enumerate(prompts, 1):
+#         print(f"\nProcessing experiment {i}...")
+#         try:
+#             plan = planner.plan_from_prompt(prompt)
+#             import pdb;pdb.set_trace()
+#             out = planner.display_plan(plan)
+#             print(out)
+#         except Exception as e:
+#             print(f"Error planning experiment {i}: {e}")
+#         finally:
+#             break
+#         print("\n" + "=" * 50)
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

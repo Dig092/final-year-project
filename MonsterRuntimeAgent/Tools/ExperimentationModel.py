@@ -219,7 +219,7 @@ class ExperimentPlanner:
         background information:
         {background_research}
 
-        tot_plan:
+        Tree of Thought Plan:
         {tot_plan}
         """
         experiment = self.generator.generate_structured_content(formatted_prompt, ExperimentPlan)

@@ -261,7 +261,7 @@ executor = autogen.UserProxyAgent(
 
 teachability.add_to_agent(planner)"""
 
-register_function(Plan,caller=planner,executor=executor,name="Plan",description="Use tree of thought ot plan how to solve the input problem")
+register_function(Plan,caller=planner,name="Plan",description="Use tree of thought ot plan how to solve the input problem")
 register_function(get_summary_tool, caller=engineer, executor=executor, name="get_summary", description="Get a search summary of datasets.")
 register_function(retreive_from_internet, caller=engineer, executor=executor, name="retreive_from_internet", description="Search internet and find context from internet.")
 

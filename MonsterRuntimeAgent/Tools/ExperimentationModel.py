@@ -258,6 +258,7 @@ class ExperimentPlanner:
     def tree_of_thoughts_plan(self,problem):
         state = []
         for s in app.stream({"input":problem}):
+            print(s)
             state.append(s)
         return state[-1]["rank_plans"]["best_plan"]
 

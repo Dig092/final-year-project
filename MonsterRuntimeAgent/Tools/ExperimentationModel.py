@@ -20,7 +20,8 @@ from pydantic import BaseModel, Field
 
 
 model = ChatOpenAI(model="gpt-4o")
-
+print(model.invoke("Hello!"))
+print("It is a test!")
 ideation_prompt = """
                   I have a problem related to Machine Learning 
                   here is the problem:{input}.
@@ -101,17 +102,7 @@ def rank_plans(state: OverallState):
     response = model.with_structured_output(Solution).invoke(prompt)
     return {"best_plan": state["plans"][response.id]}
 
-graph = StateGraph(OverallState)
-graph.add_node("generate_ideas", generate_ideas)
-graph.add_node("generate_plan", generate_plan)
-graph.add_node("rank_plans", rank_plans)
 
-graph.add_edge(START, "generate_ideas")
-graph.add_conditional_edges("generate_ideas", continue_to_plans, ["generate_plan"])
-graph.add_edge("generate_plan", "rank_plans")
-graph.add_edge("rank_plans", END)
-
-app = graph.compile()
 
 
 class ProblemType(str, Enum):
@@ -256,6 +247,17 @@ class ExperimentPlanner:
         return retreive_from_internet(prompt)
 
     def tree_of_thoughts_plan(self,problem):
+        graph = StateGraph(OverallState)
+        graph.add_node("generate_ideas", generate_ideas)
+        graph.add_node("generate_plan", generate_plan)
+        graph.add_node("rank_plans", rank_plans)
+
+        graph.add_edge(START, "generate_ideas")
+        graph.add_conditional_edges("generate_ideas", continue_to_plans, ["generate_plan"])
+        graph.add_edge("generate_plan", "rank_plans")
+        graph.add_edge("rank_plans", END)
+
+        app = graph.compile()
         state = []
         for s in app.stream({"input":problem}):
             print(s)

@@ -251,6 +251,13 @@ executor = autogen.UserProxyAgent(
     },
 )
 
+debugger  = autogen.AssistantAgent(
+    name="debugger",
+    system_message="""You are an expert debugger who suggest changes to fix the errors that are happening while exeecuting.
+                    Python code. Suggest changes to the engineer to fix the code that errors out.""",
+llm_config= claude_config
+)
+
 """teachability = Teachability(
     verbosity=0,  # 0 for basic info, 1 to add memory operations, 2 for analyzer messages, 3 for memo lists.
     reset_db=True,
@@ -265,9 +272,9 @@ register_function(get_summary_tool, caller=engineer, executor=executor, name="ge
 register_function(retreive_from_internet, caller=engineer, executor=executor, name="retreive_from_internet", description="Search internet and find context from internet.")
 
 groupchat = autogen.GroupChat(
-    agents=[user_proxy, engineer, executor],
+    agents=[user_proxy, engineer, executor,debugger],
     messages=[],
-    max_round=80,
+    max_round=30,
     select_speaker_message_template = """You are in a role play game. The following roles are available:
                 {roles}.
                 Read the following conversation.

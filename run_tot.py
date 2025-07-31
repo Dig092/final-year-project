@@ -253,8 +253,9 @@ executor = autogen.UserProxyAgent(
 
 debugger  = autogen.AssistantAgent(
     name="debugger",
-    system_message="""You are an expert debugger who suggest changes to fix the errors that are happening while exeecuting.
-                    Python code. Suggest changes to the engineer to fix the code that errors out.""",
+    system_message="""You are an expert debugger who suggest changes to fix the errors that are happening while exeecuting 
+                    Python code. Suggest changes to the engineer to fix the code that errors out.
+                    Just suggest the part of the code that needs to be changed do not generate full code.""",
 llm_config= claude_config
 )
 

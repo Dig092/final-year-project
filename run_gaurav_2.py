@@ -38,7 +38,7 @@ time.sleep(1)
 print(".")
 time.sleep(0.5)
 print(".")
-client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower(), cpu_count=16, memory = 64)
+client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower(), cpu_count=8, memory = 32)
 monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
 
 print("Your GPU Runtime is ready for action, Proceeding!")

@@ -10,6 +10,7 @@ from autogen.agentchat.contrib.capabilities.teachability import Teachability
 
 from MonsterRuntimeAgent.MonsterRuntimeCodeExecutor import MonsterRemoteCommandLineCodeExecutor
 from MonsterRuntimeAgent.Tools.RuntimeTools import MonsterNeoCodeRuntimeClient
+from MonsterRuntimeAgent.Tools.ExperimentationModel import ExperimentPlanner
 from MonsterRuntimeAgent.Tools.HFDatasetScraper import get_summary_tool
 from MonsterRuntimeAgent.Tools.NetScraper import retreive_from_internet
 
@@ -42,6 +43,17 @@ monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
 
 print("Your GPU Runtime is ready for action, Proceeding!")
 print(100*'#')
+
+print(100*'-')
+print("Compute TOT!")
+print(100*'-')
+planner =  ExperimentPlanner()
+tot_plan = planner.tree_of_thoughts_plan(problem=message)
+print(tot_plan)
+print(100*'-')
+
+def retreive_tree_of_thoughts_problem_summary():
+    return tot_plan
 
 cmodel = "claude-3-5-sonnet-20240620"
 model = "gpt-4o"
@@ -200,6 +212,8 @@ planner = autogen.AssistantAgent(
     system_message="""
     You are a Planner for an AI research and engineering team focused on machine learning tasks. Your primary objectives are:
 
+    use retreive_tree_of_thoughts_problem_summary action to get tree of thought approach notes augment your plan and make sure you are not derailing from objective.
+
     1. Deep Problem Understanding:
     - Thoroughly comprehend the goal of each task provided by the user.
     - Identify or propose appropriate evaluation metrics if not specified.
@@ -256,6 +270,7 @@ critic = autogen.AssistantAgent(
 6. Suggesting additional validation steps or control experiments when necessary.
 7. Evaluating the reproducibility and robustness of the implemented solutions.
 8. Assessing whether the outputs align with the original project goals and scientific standards.
+9. use retreive_tree_of_thoughts_problem_summary action to get tree of thought approach notes augment your plan and make sure you are not derailing from objective.
 
 Give a positive/negative score as reward to engineer and scientist and push them to optimize for higher reward.
 Use above reward approach to help planner build better solution using the other agents.
@@ -298,6 +313,9 @@ teachability.add_to_agent(planner)
 
 register_function(get_summary_tool, caller=engineer, executor=executor, name="get_summary", description="Get a search summary of datasets.")
 register_function(retreive_from_internet, caller=engineer, executor=executor, name="retreive_from_internet", description="Search internet and find context from internet.")
+register_function(retreive_tree_of_thoughts_problem_summary, caller=critic, executor=executor, name="retreive_tree_of_thoughts_problem_summary", description="Retrieve refined problem statement for tree of thoughts thinking process.")
+register_function(retreive_tree_of_thoughts_problem_summary, caller=critic, executor=executor, name="retreive_tree_of_thoughts_problem_summary", description="Retrieve refined problem statement for tree of thoughts thinking process.")
+
 
 groupchat = autogen.GroupChat(
     agents=[user_proxy, planner, scientist, engineer, executor, critic],

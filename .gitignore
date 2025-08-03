@@ -94,4 +94,6 @@ scripts/*
 
 OAI_CONFIG_LIST
 
+/kaggle_knowledge_base/*
+
 /backup/*

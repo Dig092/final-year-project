@@ -5,32 +5,34 @@ import autogen
 
 from autogen import register_function
 from autogen.agentchat.contrib.capabilities.transform_messages import TransformMessages
-from autogen.agentchat.contrib.capabilities.transforms import  MessageHistoryLimiter, MessageTokenLimiter
+from autogen.agentchat.contrib.capabilities.transforms import MessageHistoryLimiter, MessageTokenLimiter
 from autogen.agentchat.contrib.capabilities.teachability import Teachability
 
 from MonsterRuntimeAgent.MonsterRuntimeCodeExecutor import MonsterRemoteCommandLineCodeExecutor
 from MonsterRuntimeAgent.Tools.RuntimeTools import MonsterNeoCodeRuntimeClient
-from MonsterRuntimeAgent.Tools.HFDatasetScraper import get_summary_tool
-from MonsterRuntimeAgent.Tools.NetScraper  import retreive_from_internet
 from MonsterRuntimeAgent.Tools.ExperimentationModel import ExperimentPlanner
+from MonsterRuntimeAgent.Tools.HFDatasetScraper import get_summary_tool
+from MonsterRuntimeAgent.Tools.NetScraper import retreive_from_internet
 
-
-def Plan(problem:str) -> str:
-    planner =  ExperimentPlanner()
-    return planner.tree_of_thoughts_plan(problem=problem)
+from langchain_openai import ChatOpenAI
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough, RunnableAssign
+from langchain_core.output_parsers import StrOutputParser
+import chromadb
 
 MODE = "GPU"
 
 print(100*'#')
 print(100*'#')
-print("Welcome to NeoV2 MonsterAPI Research Agent!\n I have a team of Engineeer, GPU Code Executor, Research Scientist, Planner and a Critic! Go ahead and give me a AIML Development task!\n ") 
+print("Welcome to NeoV2 MonsterAPI Research Agent!\nI have a team of Engineer, GPU Code Executor, Research Scientist, Planner and a Critic! Go ahead and give me a AIML Development task!\n ")
 print(100*'#')
 
-#message = input("Enter Your Task here:")
-
-path = "MonsterRuntimeAgent/competitions/tweet-sentiment-extraction.md"
+path = "MonsterRuntimeAgent/competitions/dog-breed-prediction.md"
 
 message = open(path).read()
+# message = input("Enter Your Task here:")
 
 print(100*'#')
 print(100*'#')
@@ -44,18 +46,59 @@ time.sleep(1)
 print(".")
 time.sleep(0.5)
 print(".")
-client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower())
+client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower(), cpu_count=8, memory = 32)
 monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
 
 print("Your GPU Runtime is ready for action, Proceeding!")
 print(100*'#')
 
+print(100*'-')
+print("Compute TOT!")
+print(100*'-')
+planner =  ExperimentPlanner()
+tot_plan = planner.tree_of_thoughts_plan(problem=message)
+print(tot_plan)
+print(100*'-')
+
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+def retreive_tree_of_thoughts_problem_summary(problem_statement:str)->str:
+    llm = ChatOpenAI(model="gpt-4o")
+    embeddings = OpenAIEmbeddings()
+    persistent_client = chromadb.PersistentClient("kaggle_knowledge_base")
+    vectorstore = Chroma(client=persistent_client,collection_name="collection-1",embedding_function=embeddings)
+    retriever = vectorstore.as_retriever(search_kwargs={'k': 2,"filter":{"place":{"$lte": 5}}})
+    def retrieve(state: dict)->str:
+        query = state["problem_statement"]
+        return (retriever | format_docs).invoke(query)
+    chat_template = PromptTemplate.from_template("""You are an useful assistant whose task is to solve a Machine Learning problem.
+                                                    Here is the problem you need to solve:
+                                                    Problem: {problem_statement}.
+                                                    This is the plan the that the agent came up with using tree of thoughts to sove the problem:
+                                                    Plan: {plan}
+                                                    Here are some of the previous methods that humans used to beat the challenge:
+                                                    Prior methods: {previous_methods}
+                                                    Perfect the plan using the prior knowledge given to you.
+                                                    Make the plan clear and concise just pick a ingle frmework and perfect according to it.
+                                                    torch is preferred over tensorflow and huggingface trainer is better than writing a custom
+                                                    training loop. Just return the plan and nothing else.
+                                                 """)
+    rag_chain = RunnableAssign({"previous_methods": retrieve}) |chat_template | llm | StrOutputParser()
+    refined_tot_plan = rag_chain.invoke({"problem_statement":problem_statement,"plan":tot_plan})
+    return refined_tot_plan
+
 cmodel = "claude-3-5-sonnet-20240620"
-#cmodel = "gpt-4o"
 model = "gpt-4o"
-#model = cmodel
-truncate_messages = MessageTokenLimiter(max_tokens=96000, model = model)
+truncate_messages = MessageTokenLimiter(max_tokens=96000, model=model)
 transform_messages = TransformMessages(transforms=[truncate_messages])
+
+config_list_gemini = autogen.config_list_from_json(
+    "OAI_CONFIG_LIST",
+    filter_dict={
+        "model": ["gemini-1.5-pro-002"]
+    }
+)
 
 config_list_gpt4 = autogen.config_list_from_json(
     "OAI_CONFIG_LIST",
@@ -78,36 +121,34 @@ config_list_o1 = autogen.config_list_from_json(
     }
 )
 
-
 gpt4_config = {
-    "cache_seed": 42,  # change the cache_seed for different trials
+    "cache_seed": 42,
     "temperature": 0.4,
     "config_list": config_list_gpt4,
     "timeout": 600,
 }
 claude_config = {
-    "cache_seed": 42,  # change the cache_seed for different trials
+    "cache_seed": 42,
     "temperature": 0.4,
     "config_list": config_list_claude,
     "timeout": 30000,
 }
 o1_config = {
-    "cache_seed": 42,  # change the cache_seed for different trials
+    "cache_seed": 42,
     "config_list": config_list_o1,
     "timeout": 30000,
 }
 
-user_proxy = autogen.UserProxyAgent(
-    name="Admin",
-    system_message="A human admin. Interact with the planner to discuss the plan. Plan execution needs to be approved by this admin.",
-    code_execution_config=False,
-)
+gemini_config = {
+    "cache_seed": 42,
+    "config_list": config_list_gemini,
+    "timeout": 30000,
+}
 
 if MODE == "CPU":
     sand_box = "Consider that CPU is only with 4GB RAM and reduce batch size and dataset size to fit and run faster on this CPU container."
 else:
     sand_box = "Consider that GPU is only with 40GB GPU VRAM and reduce batch size and dataset size to fit and run faster on GPU."
-
 
 user_proxy = autogen.UserProxyAgent(
     name="Admin",
@@ -182,11 +223,29 @@ engineer = autogen.AssistantAgent(
     Wait for the Planner's finalized plan/approach before starting implementation.""",
 )
 
+scientist = autogen.AssistantAgent(
+    name="Scientist",
+    llm_config=claude_config,
+    system_message="""You are the Lead Scientist of an AI research team. Your responsibilities include:
+1. Guiding the team based on the admin's requirements and research objectives.
+2. Analyzing and categorizing research papers and their abstracts.
+3. Suggesting code improvements to the Engineer, focusing on scientific accuracy and relevance.
+4. Designing experiments that balance scientific rigor with practical constraints (e.g., 40GB GPU VRAM).
+5. Interpreting results and proposing refinements to the research approach.
+6. Ensuring that experiments are scoped appropriately for proof-of-concept (POC) stage.
+7. Collaborating with the Planner to align scientific goals with project timelines.
+8. Providing domain expertise to contextualize findings and suggest future research directions.
+
+After reviewing the Planner and Critic's finalized plan, use 'APPROVED' to indicate your agreement,
+or provide specific feedback if changes are needed.""",
+)
 
 planner = autogen.AssistantAgent(
     name="Planner",
     system_message="""
     You are a Planner for an AI research and engineering team focused on machine learning tasks. Your primary objectives are:
+
+    use retreive_tree_of_thoughts_problem_summary action to get tree of thought approach notes augment your plan and make sure you are not derailing from objective.
 
     1. Deep Problem Understanding:
     - Thoroughly comprehend the goal of each task provided by the user.
@@ -233,6 +292,31 @@ planner = autogen.AssistantAgent(
     llm_config=claude_config,
 )
 
+critic = autogen.AssistantAgent(
+    name="Critic",
+    system_message="""You are the Critic of the AI research team. Your role involves:
+1. Rigorously reviewing plans, claims, and code from other team members.
+2. Providing constructive feedback to improve the quality and reliability of the research.
+3. Verifying that all claims are substantiated with proper citations or experimental evidence.
+4. Ensuring that the team adheres to best practices in AI research and development.
+5. Identifying potential ethical concerns or limitations in the proposed approaches.
+6. Suggesting additional validation steps or control experiments when necessary.
+7. Evaluating the reproducibility and robustness of the implemented solutions.
+8. Assessing whether the outputs align with the original project goals and scientific standards.
+9. use retreive_tree_of_thoughts_problem_summary action to get tree of thought approach notes augment your plan and make sure you are not derailing from objective.
+
+Give a positive/negative score as reward to engineer and scientist and push them to optimize for higher reward.
+Use above reward approach to help planner build better solution using the other agents.
+
+When criticizing Engineer:
+- Reward it +5 points for every correct code implementation with correct code structure, schema, dependency information
+- Reward it -10 points for every wrong code implementation. 
+
+Collaborate with the Planner to finalize the plan. Use 'PLAN FINALIZED' when you and the Planner agree on the final plan.
+After reviewing results, use 'EVALUATION COMPLETE' followed by your assessment and any recommendations.""",
+    llm_config=gpt4_config,
+)
+
 executor = autogen.UserProxyAgent(
     name="Executor",
     system_message="""You are the Executor responsible for running code and experiments. Your tasks include:
@@ -251,32 +335,25 @@ executor = autogen.UserProxyAgent(
     },
 )
 
-debugger  = autogen.AssistantAgent(
-    name="debugger",
-    system_message="""You are an expert debugger who suggest changes to fix the errors that are happening while exeecuting 
-                    Python and bash code. You can also suggest changes to requirements to fix rudimentary errors happening due to missing installation candidates.
-                    Suggest changes to the engineer to fix the code that errors out.
-                    Just suggest the part of the code that needs to be changed do not generate full code.""",
-llm_config= claude_config
-)
-
-"""teachability = Teachability(
+teachability = Teachability(
     verbosity=0,  # 0 for basic info, 1 to add memory operations, 2 for analyzer messages, 3 for memo lists.
     reset_db=True,
     path_to_db_dir="./tmp/notebook/teachability_db",
     recall_threshold=0.5,  # Higher numbers allow more (but less relevant) memos to be recalled.
 )
 
-teachability.add_to_agent(planner)"""
+teachability.add_to_agent(planner)
 
-register_function(Plan,caller=engineer,executor=executor,name="Plan",description="Use tree of thoughts to plan how to solve the input problem")
 register_function(get_summary_tool, caller=engineer, executor=executor, name="get_summary", description="Get a search summary of datasets.")
 register_function(retreive_from_internet, caller=engineer, executor=executor, name="retreive_from_internet", description="Search internet and find context from internet.")
+register_function(retreive_tree_of_thoughts_problem_summary, caller=critic, executor=executor, name="retreive_tree_of_thoughts_problem_summary", description="Retrieve refined problem statement for tree of thoughts thinking process.")
+register_function(retreive_tree_of_thoughts_problem_summary, caller=critic, executor=executor, name="retreive_tree_of_thoughts_problem_summary", description="Retrieve refined problem statement for tree of thoughts thinking process.")
+
 
 groupchat = autogen.GroupChat(
-    agents=[user_proxy, engineer, executor,debugger],
+    agents=[user_proxy, planner, scientist, engineer, executor, critic],
     messages=[],
-    max_round=30,
+    max_round=80,
     select_speaker_message_template = """You are in a role play game. The following roles are available:
                 {roles}.
                 Read the following conversation.

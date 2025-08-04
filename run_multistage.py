@@ -140,7 +140,7 @@ class InitialPlanner():
 
     def create_tot_problem_statement(self) -> str:
         planner =  ExperimentPlanner()
-        tot_plan = planner.tree_of_thoughts_plan(problem=self.original_problem_statement)
+        tot_plan = planner.plan_from_prompt(prompt=self.original_problem_statement)
         return tot_plan
 
     def create_required_agents(self):

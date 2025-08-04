@@ -212,6 +212,8 @@ class ExperimentPlanner:
 
         Tree of Thought Plan:
         {tot_plan}
+
+        Make sure to maintain target metric if provided to be accurate.
         """
         experiment = self.generator.generate_structured_content(formatted_prompt, ExperimentPlan)
         import pdb;pdb.set_trace()

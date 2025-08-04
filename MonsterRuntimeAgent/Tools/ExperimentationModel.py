@@ -214,6 +214,7 @@ class ExperimentPlanner:
         {tot_plan}
         """
         experiment = self.generator.generate_structured_content(formatted_prompt, ExperimentPlan)
+        import pdb;pdb.set_trace()
         return experiment
 
     def display_plan(self, plan: ExperimentPlan) -> None:

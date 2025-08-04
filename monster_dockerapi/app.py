@@ -63,7 +63,7 @@ class ContainerRequest(BaseModel):
     type: Literal["cpu", "gpu"] = Field("cpu", description="Type of container: 'cpu' or 'gpu'. Defaults to 'cpu'.")
     cpu_count: int = Field(1, description="Number of CPU cores to allocate. Defaults to 1.")
     memory: float = Field(1, description="Amount of memory to allocate (in GB). Defaults to 1 GB.")
-    shm_size: str = Field("2gb", description="Shared memory size for the container. Default is '2gb'.")
+    shm_size: str = Field("8gb", description="Shared memory size for the container. Default is '2gb'.")
     image: Literal["qblockrepo/neo_agent_worker:cpu-latest", "qblockrepo/neo_agent_worker:gpu-latest"] = Field(
         "qblockrepo/neo_agent_worker:cpu-latest", description="Docker image to use. Defaults to the CPU-latest image."
     )

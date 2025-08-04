@@ -68,7 +68,7 @@ gemini_config = {
     "config_list": config_list_gemini,
     "timeout": 30000,
 }
-
+MODE = "GPU"
 if MODE == "CPU":
     sand_box = "Consider that CPU is only with 4GB RAM and reduce batch size and dataset size to fit and run faster on this CPU container."
 else:
@@ -153,7 +153,7 @@ class InitialPlanner():
             Use 'APPROVED' to indicate final approval of a plan or results.
             Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation.""",
             code_execution_config=False,
-            human_input_mode="AUTO"
+            human_input_mode="ALWAYS"
             )
         self.user_proxy =  autogen.UserProxyAgent(
             name="user_proxy",
@@ -170,7 +170,7 @@ class InitialPlanner():
 
     def setup_groupchat(self):
         self.groupchat = autogen.GroupChat(
-        agents=[self.user_proxy, self.planner, self.lead_scientist, self.engineer, executor, critic],
+        agents=[self.user_proxy, self.planner, self.lead_scientist, self.critic],
         messages=[],
         max_round=10,
         select_speaker_message_template = """You are in a role play game. The following roles are available:
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     print(".")
     time.sleep(0.5)
     print(".")
-    client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower(), cpu_count=16, memory = 64)
+    client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower(), cpu_count=16, memory = 32)
     monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
 
     print("Your GPU Runtime is ready for action, Proceeding!")

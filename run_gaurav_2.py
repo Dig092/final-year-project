@@ -49,6 +49,7 @@ print("Compute TOT!")
 print(100*'-')
 planner =  ExperimentPlanner()
 tot_plan = planner.tree_of_thoughts_plan(problem=message)
+#experiment_spec = planner.plan_from_prompt(problem=message) # Extract spec
 print(tot_plan)
 print(100*'-')
 

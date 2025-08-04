@@ -173,9 +173,10 @@ class ExperimentPlan(BaseModel):
         description="Target values for optimization metrics"
     )
 
-    key_additional_notes: Optional[str] = Field(None, description="Use this field to store important key information provided in prompt \
-                                                from background research and e.t.c! Use this to seed/store required additional information \
-                                                to solve the problem statement. Additional dataset links.")
+    tree_of_thoughts_plan_summary: Optional[str] = Field(None, description = "Tree of thoughts parsed plan summary, shouldnbe just plain string")
+
+    additional_instructions: Optional[str] = Field(None, description = "Additional dataset download , model handling, e.t.c instructions in string format")
+
 
     class Config:
         validate_assignment = True
@@ -216,7 +217,6 @@ class ExperimentPlanner:
         Make sure to maintain target metric if provided to be accurate.
         """
         experiment = self.generator.generate_structured_content(formatted_prompt, ExperimentPlan)
-        import pdb;pdb.set_trace()
         return experiment
 
     def display_plan(self, plan: ExperimentPlan) -> None:

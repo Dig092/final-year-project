@@ -179,7 +179,7 @@ class InitialPlanner():
                     Then select the next role from {agentlist} to play. Only return the role.""",
         select_speaker_prompt_template = "Read the above conversation. Then select the next role from {agentlist} to play. Only return the role."
         )
-        manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
+        self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
 
 if __name__ == "__main__":
     MODE = "GPU"
@@ -212,5 +212,4 @@ if __name__ == "__main__":
     print(100*'#')
 
     planner = InitialPlanner(problem_statement=message)
-    import pdb;pdb.set_trace()
     planner.user_proxy.initiate_chat(planner.manager, message=message)

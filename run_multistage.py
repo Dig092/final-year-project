@@ -182,7 +182,6 @@ class InitialPlanner():
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
 
 if __name__ == "__main__":
-    MODE = "GPU"
     print(100*'#')
     print(100*'#')
     print("Welcome to NeoV2 MonsterAPI Research Agent!\nI have a team of Engineer, GPU Code Executor, Research Scientist, Planner and a Critic! Go ahead and give me a AIML Development task!\n ")
@@ -199,12 +198,7 @@ if __name__ == "__main__":
     print(".")
     time.sleep(1)
     print(".")
-    time.sleep(1)
-    print(".")
-    time.sleep(1)
-    print(".")
-    time.sleep(0.5)
-    print(".")
+
     client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower(), cpu_count=16, memory = 32)
     monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
 

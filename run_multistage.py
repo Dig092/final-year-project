@@ -137,6 +137,7 @@ class InitialPlanner():
         self.create_required_agents()
         self.register_function_calls()
         self.setup_groupchat()
+        self.initiate_chat()
 
     def create_tot_problem_statement(self) -> str:
         planner =  ExperimentPlanner()
@@ -164,13 +165,14 @@ class InitialPlanner():
         self.planner = create_agent("Planner", system_message=plannerphase_planner_system_message, llm_config=gpt4_config)
         self.critic = create_agent("Critic", system_message = plannerphase_critic_system_message, llm_config = claude_config)
         self.lead_scientist = create_agent("LeadScientist", system_message=pannerphase_lead_scientist_system_message, llm_config = claude_config)
+        self.summarizer = create_agent("Summarizer", system_message="Summarize plan in detail along with refined problem statement solutions to follow and other critical conclusions from this planning group session dont include.", llm_config = claude_config)
     
     def register_function_calls(self):
         autogen.register_function(retreive_from_internet, caller=self.lead_scientist, executor=self.user_proxy, name="retreive_from_internet", description="Search internet and find context from internet.")
 
     def setup_groupchat(self):
         self.groupchat = autogen.GroupChat(
-        agents=[self.user_proxy, self.planner, self.lead_scientist, self.critic],
+        agents=[self.user_proxy, self.planner, self.lead_scientist, self.critic, self.summarizer],
         messages=[],
         max_round=10,
         select_speaker_message_template = """You are in a role play game. The following roles are available:
@@ -180,6 +182,15 @@ class InitialPlanner():
         select_speaker_prompt_template = "Read the above conversation. Then select the next role from {agentlist} to play. Only return the role."
         )
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
+
+    def initiate_chat(self):
+        self.user_proxy.initiate_chat(self.manager, message=self.tree_of_throughts_plan)
+
+    def get_planner_summary(self):
+        history = self.manager.chat_messages
+        pass
+
+
 
 if __name__ == "__main__":
     print(100*'#')
@@ -206,4 +217,3 @@ if __name__ == "__main__":
     print(100*'#')
 
     planner = InitialPlanner(problem_statement=message)
-    planner.user_proxy.initiate_chat(planner.manager, message=message)

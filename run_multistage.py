@@ -187,9 +187,21 @@ class InitialPlanner():
         self.user_proxy.initiate_chat(self.manager, message=self.tree_of_throughts_plan)
 
     def get_planner_summary(self):
-        history = self.manager.chat_messages
-        pass
+        history = self.summarizer.chat_messages[self.summarizer]
+        for i in history:
+            if i["name"].lower() == "summarizer":
+                planning_summary = i["content"]
+            else:
+                pass
+        
+        upgraded_prompt = """
+        Tree of thoughts plan:
+        {self.tree_of_throughts_plan}
 
+        Planning phase summaru:
+        {planning_summary}
+        """
+        return upgraded_prompt
 
 
 if __name__ == "__main__":

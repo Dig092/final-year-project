@@ -194,7 +194,7 @@ class InitialPlanner():
             else:
                 pass
         
-        upgraded_prompt = """
+        upgraded_prompt = f"""
         Tree of thoughts plan:
         {self.tree_of_throughts_plan}
 

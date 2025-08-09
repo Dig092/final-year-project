@@ -75,32 +75,107 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             return filename_match.group(1)
         return None
 
-    def _detect_language(self, code: str) -> str:
+    def _detect_language(self, code: str) -> Optional[str]:
         """
-        Detects the programming language of the provided code.
-
+        Detects the programming language of the provided code using multiple heuristics.
+        
         Args:
             code (str): The code block whose language needs to be detected.
-
+            
         Returns:
-            str: Detected language.
+            Optional[str]: Detected language ("python" or "bash") or None if unable to detect.
         """
-        # Detect Python
-        if re.search(r'^\s*import\s|\s*def\s|\s*class\s|\s*print\(', code, re.MULTILINE):
-            return "python"
+        # Clean the code and ensure it's not empty
+        if not code or not code.strip():
+            return None
         
-        # Detect Bash
-        if re.search(r'^\s*#!/bin/bash\s|^\s*echo\s|^\s*ls\s|^\s*cd\s', code, re.MULTILINE):
-            return "bash"
+        code = code.strip()
+        
+        # Common patterns for each language
+        python_patterns = {
+            'imports': r'^\s*(?:from\s+[\w.]+\s+)?import\s+[\w.]+',
+            'function_def': r'^\s*def\s+\w+\s*\([^)]*\)\s*:',
+            'class_def': r'^\s*class\s+\w+',
+            'print': r'print\s*\(',
+            'python_builtins': r'(?:len|range|list|dict|set|tuple)\s*\(',
+            'list_comprehension': r'\[\s*[\w\s.()]+\s+for\s+\w+\s+in\s+',
+            'python_comments': r'^\s*#(?!\!)',  # Comments but not shebang
+            'variable_assignment': r'^\s*\w+\s*=\s*[\w\'"{\[\(]',
+            'pip_commands': r'^\s*!?pip\s+(?:install|uninstall|list)',
+            'python_string': r'(?:f|r|b)?[\'"]{3}|(?:f|r|b)?[\'"]{1}',
+            'indentation': r'^\s{4}\w+',
+        }
+        
+        bash_patterns = {
+            'command_chains': r'[|;&]',
+            'file_operations': r'(?:^|\s)(?:cat|touch|rm|cp|mv|mkdir|chmod|chown)\s',
+            'navigation': r'(?:^|\s)(?:cd|pwd|ls|find|grep)\s',
+            'environment': r'(?:^|\s)(?:export|env|echo|source)\s',
+            'package_management': r'(?:^|\s)(?:apt|yum|brew|npm|pip)\s',
+            'process_management': r'(?:^|\s)(?:ps|kill|top|systemctl)\s',
+            'redirections': r'[><]{1,2}',
+            'variable_assignment': r'^\s*[\w]+=[\w\'"./]+',
+            'for_loop': r'^\s*for\s+\w+\s+in\s+.+;\s*do',
+            'if_statement': r'^\s*if\s+\[\[?.+\]\]?.+;\s*then',
+            'shebang': r'^#!.*(?:bash|sh)',
+            'bash_array': r'^\s*[\w]+=\(',
+        }
 
-        # Fallback to using shebang if present
-        if code.startswith("#!"):
-            if "python" in code.lower():
+        # Count matches for each language
+        python_score = 0
+        bash_score = 0
+
+        # Check Python patterns
+        for pattern in python_patterns.values():
+            matches = len(re.findall(pattern, code, re.MULTILINE))
+            python_score += matches
+
+        # Check Bash patterns
+        for pattern in bash_patterns.values():
+            matches = len(re.findall(pattern, code, re.MULTILINE))
+            bash_score += matches
+
+        # Additional scoring based on specific characteristics
+        
+        # Python-specific characteristics
+        if ':' in code and ('def' in code or 'class' in code):
+            python_score += 3
+        if 'import' in code.lower() and 'from' in code.lower():
+            python_score += 2
+        if re.search(r'^\s{4}', code, re.MULTILINE):  # Consistent 4-space indentation
+            python_score += 2
+
+        # Bash-specific characteristics
+        if '$' in code and not '$$' in code:  # Variable usage in bash but not Python multiprocessing
+            bash_score += 2
+        if ';' in code and not re.search(r'for.*?;.*?do', code):  # Command separation
+            bash_score += 1
+        if re.search(r'(?<![\w])-[a-z]{1,2}\b', code):  # Command flags
+            bash_score += 2
+
+        # Special case for single-line commands
+        if len(code.split('\n')) == 1:
+            if re.match(r'^\s*!.*', code):  # Jupyter notebook shell command
+                return "bash"
+            if re.match(r'^\s*(?:pip|python|python3)\s', code):
                 return "python"
-            elif "bash" in code.lower():
+            if re.match(r'^\s*[a-z]+(?:\s+-[a-zA-Z]+)*\s*', code):  # Typical bash command structure
                 return "bash"
 
-        logger.warning("Unable to detect language, defaulting to bash!")
+        # Make the final decision
+        if python_score > bash_score:
+            return "python"
+        elif bash_score > python_score:
+            return "bash"
+        elif bash_score == python_score:
+            # If scores are equal, look for definitive indicators
+            if re.search(r'^\s*(?:def|class|import|from\s+\w+\s+import)', code, re.MULTILINE):
+                return "python"
+            elif re.search(r'^\s*(?:#!/bin/bash|#!/bin/sh)', code):
+                return "bash"
+            elif re.search(r'^\s*(?:cd|ls|mkdir|rm|cp|mv)\s', code, re.MULTILINE):
+                return "bash"
+        
         return None
 
     def _parse_errors(self, logs: str, language: str) -> str:
@@ -288,10 +363,11 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             for code_block in code_blocks:
                 lang = self._detect_language(code_block.code)
                 if lang == None:
-                    error = """
-                    Couldnt detect either bash or python code.
-                    please start with shebang if bash.
-                    """
+                    # error = """
+                    # Couldnt detect either bash or python code.
+                    # please start with shebang if bash.
+                    # """
+                    error = """Unable to definitively detect code type. Please ensure code contains clear Python or Bash characteristics."""
                     logger.error(error)
                     return CommandLineCodeResult(exit_code=1, output=error)
 

@@ -20,7 +20,7 @@ model = "gpt-4o"
 config_list_gemini = autogen.config_list_from_json(
     "OAI_CONFIG_LIST",
     filter_dict={
-        "model": ["gemini-1.5-pro-002"]
+        "model": ["gemini-1.5-flash"]
     }
 )
 
@@ -152,7 +152,7 @@ class InitialPlanner():
             name="Admin",
             system_message="""A human admin. Interact with the planner, critic and scientist to discuss the plan. Plan execution needs to be approved by this admin.
             Use 'APPROVED' to indicate final approval of a plan or results.
-            Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation.""",
+            Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation. End with summarizer summarizing the solution""",
             code_execution_config=False,
             human_input_mode="ALWAYS"
             )
@@ -184,15 +184,18 @@ class InitialPlanner():
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
 
     def initiate_chat(self):
-        self.user_proxy.initiate_chat(self.manager, message=self.tree_of_throughts_plan)
+        self.user_proxy.initiate_chat(self.manager, message=str(self.tree_of_throughts_plan))
 
     def get_planner_summary(self):
-        history = self.summarizer.chat_messages[self.summarizer]
+        history = self.summarizer.chat_messages_for_summary[self.summarizer]
         for i in history:
-            if i["name"].lower() == "summarizer":
+            if "name" in i and i["name"].lower() == "summarizer":
                 planning_summary = i["content"]
             else:
                 pass
+
+        if planning_summary == None:
+            print("Cannot parse plan summary!")
         
         upgraded_prompt = f"""
         Tree of thoughts plan:
@@ -261,7 +264,7 @@ class DataEngineer():
         self.junior_data_engineer = create_agent("Junior Data Engineer", system_message = junior_data_engineer_system_message, llm_config = claude_config)
         self.executor = autogen.UserProxyAgent(name="Executor",system_message=executor_system_message,human_input_mode="NEVER",code_execution_config={"last_n_messages": 2,"executor": self.executor},)
         self.debugger = create_agent("Debugger",system_message=debugger_system_message,llm_config=claude_config)
-        self.summarizer = create_agent("Summarizer", system_message="Summarize the execution details exclude the errors and exceptions occoured. Give details about how the data is loaded and where it is stored it's variable name etc,. Summary will be used by machine Leaning Engineer to use the loaded the data to train models", llm_config = claude_config)
+        self.summarizer = create_agent("Summarizer", system_message="Summarize the execution details exclude the errors and exceptions occoured. Give details about how the data is loaded and where it is stored it's variable name etc,. Summary will be used by machine Leaning Engineer to use the loaded the data to train models", llm_config = gemini_config)
     
     def register_function_calls(self):
         autogen.register_function(retreive_from_internet, caller=self.junior_data_engineer, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
@@ -284,7 +287,7 @@ class DataEngineer():
         self.admin.initiate_chat(self.manager, message=self.original_problem_statement)
 
     def get_planner_summary(self):
-        history = self.summarizer.chat_messages[self.summarizer]
+        history = self.summarizer.chat_messages_for_summary[self.summarizer]
         for i in history:
             if i["name"].lower() == "summarizer":
                 planning_summary = i["content"]

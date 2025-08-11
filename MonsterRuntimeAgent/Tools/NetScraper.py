@@ -18,6 +18,7 @@ def google_search(query, max_results=5):
     Function to search Google using the Custom Search JSON API.
     """
     retries = 0
+    result = ""
     while retries < 3:
         service = build("customsearch", "v1", developerKey=API_KEY)
         result = service.cse().list(q=query, cx=CSE_ID, num=max_results).execute()
@@ -26,6 +27,8 @@ def google_search(query, max_results=5):
             time.sleep(5)
             continue
         return result['items']
+
+    raise RuntimeError(f"Unable to fetch results. Got this result: {result}")
 
 # Apply nest_asyncio to handle nested event loops
 nest_asyncio.apply()
@@ -62,6 +65,9 @@ async def generate_search_query(problem_statement):
     - kaggle.com
 
     You can also adjoin multiple websites into a search query if needed by adding "OR" in between the site match patterns.
+
+    Remember:
+    - Do not put the query strings inside double quotes.
     """
 
     prompt = f"Create a 3-5 word search query for the following problem statement:\n\n{problem_statement}"

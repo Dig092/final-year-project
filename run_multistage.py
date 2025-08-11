@@ -187,7 +187,8 @@ class InitialPlanner():
         self.user_proxy.initiate_chat(self.manager, message=str(self.tree_of_throughts_plan))
 
     def get_planner_summary(self):
-        history = self.summarizer.chat_messages_for_summary[self.summarizer]
+        history = self.summarizer.chat_messages_for_summary(self.summarizer)
+        planning_summary = None
         for i in history:
             if "name" in i and i["name"].lower() == "summarizer":
                 planning_summary = i["content"]
@@ -206,11 +207,12 @@ class InitialPlanner():
         """
         return upgraded_prompt
 
-lead_data_engineer_system_message = """You are a Lead Data engineer. Look at the Plan provided by planning phase.
+lead_data_engineer_system_message = """You are a Lead Data engineer. Dont use underscore when naming the agent. Look at the Plan provided by planning phase.
 Plan how junior data engineer can load and transform the dataset as per the TOT plan.
 Do not generate any code.
 Plan the data engineering part of the pipeline.
 Provide a clear unambigious step by step instruction to junior data engineer to write the code.
+Also only make engineers use pytorch instead of tensorflow
 """  
 
 junior_data_engineer_system_message = """You are a junior data engineer and 
@@ -218,6 +220,7 @@ your task is to write code using the instructions provided by the lead data engi
 You are also tasked with fixing bad code as per the suggestions given by the debugger.
 Generate only the code for execution and nothing else.
 Prefer OOPS and Modular programming for easier debugging and resuablity.
+Also only make engineers use pytorch instead of tensorflow
 """
 
 executor_system_message = """You are the Executor responsible for running code and experiments. Your tasks include:
@@ -234,6 +237,7 @@ debugger_system_message = """ You are a debugger whose task is to debug the code
 read the traceback carefully and try to understand what is causing the issue.
 suggest exact fixes that needs to be done clearly.
 Eplain the junior data engineer why the code is failing and what nees to be fixed in order for the code to execute.
+Also only make engineers use pytorch instead of tensorflow
 """
 
 
@@ -260,8 +264,8 @@ class DataEngineer():
             code_execution_config=False,
             human_input_mode="ALWAYS"
             )
-        self.lead_data_engineer = create_agent("Lead Data Engineer", system_message=lead_data_engineer_system_message, llm_config=gpt4_config)
-        self.junior_data_engineer = create_agent("Junior Data Engineer", system_message = junior_data_engineer_system_message, llm_config = claude_config)
+        self.lead_data_engineer = create_agent("LeadDataEngineer", system_message=lead_data_engineer_system_message, llm_config=gpt4_config)
+        self.junior_data_engineer = create_agent("JuniorDataEngineer", system_message = junior_data_engineer_system_message, llm_config = claude_config)
         self.executor = autogen.UserProxyAgent(name="Executor",system_message=executor_system_message,human_input_mode="NEVER",code_execution_config={"last_n_messages": 2,"executor": self.executor},)
         self.debugger = create_agent("Debugger",system_message=debugger_system_message,llm_config=claude_config)
         self.summarizer = create_agent("Summarizer", system_message="Summarize the execution details exclude the errors and exceptions occoured. Give details about how the data is loaded and where it is stored it's variable name etc,. Summary will be used by machine Leaning Engineer to use the loaded the data to train models", llm_config = gemini_config)
@@ -287,17 +291,18 @@ class DataEngineer():
         self.admin.initiate_chat(self.manager, message=self.original_problem_statement)
 
     def get_planner_summary(self):
-        history = self.summarizer.chat_messages_for_summary[self.summarizer]
+        history = self.summarizer.chat_messages_for_summary(self.summarizer)
+        planning_summary = None
         for i in history:
             if i["name"].lower() == "summarizer":
                 planning_summary = i["content"]
             else:
                 pass
-        
+            
         upgraded_prompt = f"""
-        Data Engineering phase summary:
-        {planning_summary}
-        """
+            Data Engineering phase summary:
+            {planning_summary}
+            """
         return upgraded_prompt
 
 
@@ -354,8 +359,8 @@ class MachineLearningEngineer():
             code_execution_config=False,
             human_input_mode="ALWAYS"
             )
-        self.lead_machine_learning_engineer = create_agent("Lead Machine Learning Engineer", system_message=lead_machine_learning_engineer_system_message, llm_config=gpt4_config)
-        self.junior_machine_learning_engineer = create_agent("Junior Machine Learning Engineer", system_message =  junior_machine_learning_engineer_system_message, llm_config = claude_config)
+        self.lead_machine_learning_engineer = create_agent("LeadMachineLearningEngineer", system_message=lead_machine_learning_engineer_system_message, llm_config=gpt4_config)
+        self.junior_machine_learning_engineer = create_agent("JuniorMachineLearningEngineer", system_message =  junior_machine_learning_engineer_system_message, llm_config = claude_config)
         self.executor = autogen.UserProxyAgent(name="Executor",system_message=executor_system_message,human_input_mode="NEVER",code_execution_config={"last_n_messages": 2,"executor": self.executor},)
         self.debugger = create_agent("Debugger",system_message=ml_debugger_system_message,llm_config=claude_config)
         self.hyperparam_tuner = create_agent("Hyper Parameter Tuner", system_message=hyper_parameter_tuner_system_message, llm_config = claude_config)

@@ -1,5 +1,6 @@
 from openai import OpenAI
 import os
+import time
 import asyncio
 import nest_asyncio
 from crawl4ai import AsyncWebCrawler
@@ -16,9 +17,15 @@ def google_search(query, max_results=5):
     """
     Function to search Google using the Custom Search JSON API.
     """
-    service = build("customsearch", "v1", developerKey=API_KEY)
-    result = service.cse().list(q=query, cx=CSE_ID, num=max_results).execute()
-    return result['items']
+    retries = 0
+    while retries < 3:
+        service = build("customsearch", "v1", developerKey=API_KEY)
+        result = service.cse().list(q=query, cx=CSE_ID, num=max_results).execute()
+        if 'items' not in result:
+            retries += 1
+            time.sleep(5)
+            continue
+        return result['items']
 
 # Apply nest_asyncio to handle nested event loops
 nest_asyncio.apply()

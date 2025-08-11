@@ -52,7 +52,7 @@ def generate_tree_of_thought_plan(problem_statement: str):
     print("Compute TOT!")
     print(100*'-')
     planner =  ExperimentPlanner()
-    tot_plan = planner.tree_of_thoughts_plan(problem=problem_statement)
+    tot_plan = planner.plan_from_prompt(prompt=problem_statement)
     print(tot_plan)
     print(100*'-')
     return tot_plan
@@ -286,7 +286,7 @@ dataengineer = autogen.AssistantAgent(
         - Dataset Not Provided:
             - If a dataset is not provided:
                 - Identify relevant online datasets for the problem statement.
-                - Use the `retrieve_from_internet` tool to search for datasets online.
+                - Use the `retreive_from_internet` tool to search for datasets online.
                 - Utilize the `get_summary` tool to obtain summaries of datasets from platforms like Hugging Face.
                 - If a Kaggle dataset download command is provided, assume the Kaggle CLI is installed and proceed to download using the command.
 

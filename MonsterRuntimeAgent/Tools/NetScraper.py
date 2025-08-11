@@ -70,7 +70,7 @@ async def generate_search_query(problem_statement):
     - Do not put the query strings inside double quotes.
     """
 
-    prompt = f"Create a 3-5 word search query for the following problem statement:\n\n{problem_statement}"
+    prompt = f"Create a single 3-5 word search query for the following problem statement:\n\n{problem_statement}"
 
     query = await chat_completion_request(system_prompt,prompt)
     print(f"Generated Search Query: {query}")

@@ -187,7 +187,7 @@ class InitialPlanner():
         self.user_proxy.initiate_chat(self.manager, message=str(self.tree_of_throughts_plan))
 
     def get_planner_summary(self):
-        history = self.summarizer.chat_messages_for_summary(self.summarizer)
+        history = self.manager._groupchat.messages
         planning_summary = None
         for i in history:
             if "name" in i and i["name"].lower() == "summarizer":
@@ -311,7 +311,7 @@ class DataEngineer():
         self.admin.initiate_chat(self.manager, message=self.original_problem_statement)
 
     def get_planner_summary(self):
-        history = self.summarizer.chat_messages_for_summary(self.summarizer)
+        history = self.manager._groupchat.messages
         planning_summary = None
         for i in history:
             if i["name"].lower() == "summarizer":

@@ -409,7 +409,7 @@ class MachineLearningEngineer():
         self.junior_machine_learning_engineer = create_agent("JuniorMachineLearningEngineer", system_message =  junior_machine_learning_engineer_system_message, llm_config = claude_config)
         self.executor = autogen.UserProxyAgent(name="Executor",system_message=executor_system_message,human_input_mode="NEVER",code_execution_config={"last_n_messages": 2,"executor": self.executor},)
         self.debugger = create_agent("Debugger",system_message=ml_debugger_system_message,llm_config=claude_config)
-        self.hyperparam_tuner = create_agent("Hyper Parameter Tuner", system_message=hyper_parameter_tuner_system_message, llm_config = claude_config)
+        self.hyperparam_tuner = create_agent("HyperParameterTuner", system_message=hyper_parameter_tuner_system_message, llm_config = claude_config)
     
     def register_function_calls(self):
         autogen.register_function(retreive_from_internet, caller=self.junior_machine_learning_engineer, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")

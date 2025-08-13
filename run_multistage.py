@@ -14,6 +14,12 @@ from MonsterRuntimeAgent.Tools.ExperimentationModel import ExperimentPlanner
 from MonsterRuntimeAgent.Tools.HFDatasetScraper import get_summary_tool
 from MonsterRuntimeAgent.Tools.NetScraper import retreive_from_internet
 
+from langchain_openai import ChatOpenAI
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
+import chromadb
+
 cmodel = "claude-3-5-sonnet-20240620"
 model = "gpt-4o" 
 
@@ -129,6 +135,21 @@ pannerphase_lead_scientist_system_message = """
 Work with critic and planner to make sure to provide feasible solution or execution plan.
 perform internet search for required research as needed to solve any contention and make sure solution is top-notch.
 """
+embeddings = OpenAIEmbeddings()
+persistent_client = chromadb.PersistentClient("conversation_history")
+collection  = persistent_client.get_or_create_collection("collection-1")
+vectorstore = Chroma(client=persistent_client,collection_name="collection-1",embedding_function=embeddings)
+
+def add_to_scratchpad(message:dict):
+    retriever = vectorstore.as_retriever(search_kwargs={'k': 2})
+    docs = [Document(page_content=message["content"],metadata={"speaker":message["name"].lower()})]
+    retriever.add_documents(docs)
+
+def retrieve_from_scratchpad(query:str)->str:
+    retriever = vectorstore.as_retriever(search_kwargs={'k': 2})
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+    return (retriever | format_docs).invoke(query)
 
 class InitialPlanner():
     def __init__(self, problem_statement):
@@ -190,11 +211,11 @@ class InitialPlanner():
         history = self.manager._groupchat.messages
         planning_summary = None
         for i in history:
+            add_to_scratchpad(i)
             if "name" in i and i["name"].lower() == "summarizer":
-                planning_summary = i["content"]
+                planning_summary += i["content"]
             else:
                 pass
-
         if planning_summary == None:
             print("Cannot parse plan summary!")
         
@@ -304,6 +325,9 @@ class DataEngineer():
     def register_function_calls(self):
         autogen.register_function(retreive_from_internet, caller=self.junior_data_engineer, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
         autogen.register_function(retreive_from_internet, caller=self.debugger, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.lead_data_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.junior_data_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.debugger, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
 
     def setup_groupchat(self):
         self.groupchat = autogen.GroupChat(
@@ -325,6 +349,7 @@ class DataEngineer():
         history = self.manager._groupchat.messages
         planning_summary = None
         for i in history:
+            add_to_scratchpad(i)
             if i["name"].lower() == "summarizer":
                 planning_summary = i["content"]
             else:
@@ -418,6 +443,9 @@ class MachineLearningEngineer():
         autogen.register_function(retreive_from_internet, caller=self.junior_machine_learning_engineer, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
         autogen.register_function(retreive_from_internet, caller=self.debugger, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
         autogen.register_function(retreive_from_internet, caller=self.hyperparam_tuner, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.junior_machine_learning_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.lead_machine_learning_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.debugger, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
 
     def setup_groupchat(self):
         self.groupchat = autogen.GroupChat(

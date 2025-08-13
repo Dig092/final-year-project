@@ -224,6 +224,9 @@ Dataset Management Guidelines:
 
     - Data Efficiency:
         - Manage data efficiently to ensure smooth access and prevent redundancy.
+
+    - Dependencies:
+        - Always assume that Kaggle CLI and Huggingface CLI are already installed and are ready to be used. No need to install or set them up again.
 """
 
 lead_data_engineer_system_message = f"""You are a Lead Data engineer. Dont use underscore when naming the agent. Look at the Plan provided by planning phase.
@@ -306,7 +309,7 @@ class DataEngineer():
         self.groupchat = autogen.GroupChat(
         agents=[self.admin, self.lead_data_engineer, self.junior_data_engineer, self.executor,self.debugger,self.summarizer],
         messages=[],
-        max_round=10,
+        max_round=30,
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.
@@ -420,7 +423,7 @@ class MachineLearningEngineer():
         self.groupchat = autogen.GroupChat(
         agents=[self.admin, self.lead_machine_learning_engineer, self.junior_machine_learning_engineer, self.executor,self.debugger,self.hyperparam_tuner],
         messages=[],
-        max_round=30,
+        max_round=50,
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.
@@ -446,7 +449,7 @@ if __name__ == "__main__":
     print("Welcome to NeoV2 MonsterAPI Research Agent!\nI have a team of Engineer, GPU Code Executor, Research Scientist, Planner and a Critic! Go ahead and give me a AIML Development task!\n ")
     print(100*'#')
 
-    path = "MonsterRuntimeAgent/competitions/chaii-hindi-and-tamil-question-answering.md"
+    path = "MonsterRuntimeAgent/competitions/tweet-sentiment-extraction.md"
 
     message = open(path).read()
     # message = input("Enter Your Task here:")

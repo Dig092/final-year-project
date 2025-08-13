@@ -209,14 +209,14 @@ class InitialPlanner():
 
     def get_planner_summary(self):
         history = self.manager._groupchat.messages
-        planning_summary = None
+        planning_summary = ""
         for i in history:
             add_to_scratchpad(i)
             if "name" in i and i["name"].lower() == "summarizer":
                 planning_summary += i["content"]
             else:
                 pass
-        if planning_summary == None:
+        if planning_summary == "":
             print("Cannot parse plan summary!")
         
         upgraded_prompt = f"""
@@ -347,14 +347,15 @@ class DataEngineer():
 
     def get_planner_summary(self):
         history = self.manager._groupchat.messages
-        planning_summary = None
+        planning_summary = ""
         for i in history:
             add_to_scratchpad(i)
             if i["name"].lower() == "summarizer":
-                planning_summary = i["content"]
+                planning_summary += i["content"]
             else:
                 pass
-            
+        if planning_summary == "":
+            print("Cannot parse plan summary!")
         upgraded_prompt = f"""
             Data Engineering phase summary:
             {planning_summary}

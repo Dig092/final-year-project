@@ -210,7 +210,7 @@ class InitialPlanner():
     def get_planner_summary(self):
         history = self.manager._groupchat.messages
         planning_summary = ""
-        for i in history:
+        for i in history[::-1]:
             add_to_scratchpad(i)
             if "name" in i and i["name"].lower() == "summarizer":
                 planning_summary += i["content"]
@@ -348,7 +348,7 @@ class DataEngineer():
     def get_planner_summary(self):
         history = self.manager._groupchat.messages
         planning_summary = ""
-        for i in history:
+        for i in history[::-1]:
             add_to_scratchpad(i)
             if i["name"].lower() == "summarizer":
                 planning_summary += i["content"]

@@ -31,3 +31,7 @@ kaggle competitions download -c dog-breed-identification
 ```
 
 Assume that the Kaggle CLI is already installed and ready to use.
+
+
+# Evaluation Metric
+Multilcass log loss should reach 0.00 previous winner value

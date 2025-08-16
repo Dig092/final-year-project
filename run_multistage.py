@@ -212,7 +212,7 @@ class InitialPlanner():
         planning_summary = ""
         for i in history[::-1]:
             add_to_scratchpad(i)
-            if "name" in i and i["name"].lower() == "summarizer":
+            if "name" in i and i["name"].lower() == "summarizer" and i["content"] != None:
                 planning_summary += i["content"]
             else:
                 pass
@@ -477,8 +477,14 @@ if __name__ == "__main__":
     print(100*'#')
     print("Welcome to NeoV2 MonsterAPI Research Agent!\nI have a team of Engineer, GPU Code Executor, Research Scientist, Planner and a Critic! Go ahead and give me a AIML Development task!\n ")
     print(100*'#')
+    import sys
+    
+    try:
+        file_n = sys.argv[1]
+    except IndexError:
+        file_n = "dog-breed-prediction.md"
 
-    path = "MonsterRuntimeAgent/competitions/tweet-sentiment-extraction.md"
+    path = f"MonsterRuntimeAgent/competitions/{file_n}"
 
     message = open(path).read()
     # message = input("Enter Your Task here:")

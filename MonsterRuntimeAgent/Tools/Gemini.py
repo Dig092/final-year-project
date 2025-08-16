@@ -71,7 +71,7 @@ class GeminiContentGenerator:
             description += f"- {field_name} ({field_type}): {field_description}\n"
         return description
 
-    def generate_structured_content(self, prompt: str, model: Type[T], max_retries: int = 3, retry_delay: float = 1.0) -> T:
+    def generate_structured_content(self, prompt: str, model: Type[T], max_retries: int = 8, retry_delay: float = 1.0) -> T:
         """
         Generates structured content using the Gemini API and validates it against a Pydantic model.
 
@@ -137,6 +137,7 @@ class GeminiContentGenerator:
                     time.sleep(retry_delay)
                     # Send error feedback to the chat for better next attempt
                     chat.send_message(error_message)
+                    enhanced_prompt = f"""{enhanced_prompt}\nPrevent this Error:{error_message}"""
                 else:
                     raise ValueError(f"Failed to generate valid content after {max_retries} attempts. Last error: {str(e)}")
 

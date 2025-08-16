@@ -431,6 +431,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                         status = self.client.session_manager.get_job_status(job_id)
                         logger.info(f"Job {job_id} status: {status['status']}")
                         if status['status'] == 'completed':
+                            logs_all = ""
                             logs_all += status.get("stdout", "") or ""  # Avoid concatenating None
                             logs_all += status.get("stderr", "") or ""
                             exit_code = status.get("exit_code", 0)

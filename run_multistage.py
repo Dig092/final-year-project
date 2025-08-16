@@ -208,12 +208,13 @@ class InitialPlanner():
         self.user_proxy.initiate_chat(self.manager, message=str(self.tree_of_throughts_plan))
 
     def get_planner_summary(self):
-        history = self.manager._groupchat.messages
+        history = self.manager.chat_messages_for_summary(self.summarizer)
         planning_summary = ""
         for i in history[::-1]:
             add_to_scratchpad(i)
             if "name" in i and i["name"].lower() == "summarizer" and i["content"] != None:
                 planning_summary += i["content"]
+                break
             else:
                 pass
         if planning_summary == "":
@@ -346,12 +347,13 @@ class DataEngineer():
         self.admin.initiate_chat(self.manager, message=self.original_problem_statement)
 
     def get_planner_summary(self):
-        history = self.manager._groupchat.messages
+        history = self.manager.chat_messages_for_summary(self.summarizer)
         planning_summary = ""
         for i in history[::-1]:
             add_to_scratchpad(i)
-            if i["name"].lower() == "summarizer":
+            if "name" in i and i["name"].lower() == "summarizer" and i["content"] != "":
                 planning_summary += i["content"]
+                break
             else:
                 pass
         if planning_summary == "":

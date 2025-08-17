@@ -127,6 +127,10 @@ You are planner that will verify vet and execute plan provided to you by user/ad
     - Non-Execution: Refrain from directly executing code or functions; focus on planning and guidance.
     - Adaptability: Be prepared to adjust plans based on new information or feedback.
     - Collaboration: Work closely with team members to drive the project toward successful completion.
+
+Make sure to choose appropriate model size based on existing data size and model size. 
+Try to find most optimal model size. 
+Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality.
 """
 plannerphase_critic_system_message = """
 Work as critic and criticise and improve planner and lead scientist final plan.
@@ -370,6 +374,8 @@ Code Generation Guidelines for training or finetuning a model:
     - Always ensure that you write code for checkpointing the weights regularly (not too much) and saving the final weights after the process is completely executed.
     - The model checkpoints or weights must be stored in `/tmp/model` directory. If the directory doesn't exist then it must be created before storing the mdoels in it.
     - Ensure that the code has proper logging and formatting for each iteration/epoch.
+    - Make sure to choose appropriate model size based on existing data size and model size.Try to find most optimal model size. 
+    - Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality.
 """
 
 lead_machine_learning_engineer_system_message = f"""

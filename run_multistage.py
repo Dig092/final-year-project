@@ -179,7 +179,7 @@ class InitialPlanner():
             Use 'APPROVED' to indicate final approval of a plan or results.
             Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation. End with summarizer summarizing the solution""",
             code_execution_config=False,
-            human_input_mode="ALWAYS"
+            human_input_mode="NEVER"
             )
         self.user_proxy =  autogen.UserProxyAgent(
             name="user_proxy",
@@ -203,7 +203,7 @@ class InitialPlanner():
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.
-                    Then select the next role from {agentlist} to play. Only return the role.""",
+                    Then select the next role from {agentlist} to play. Only return the role. Always trigger summarizer only the end of task.""",
         select_speaker_prompt_template = "Read the above conversation. Then select the next role from {agentlist} to play. Only return the role."
         )
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
@@ -214,7 +214,7 @@ class InitialPlanner():
     def get_planner_summary(self):
         history = self.manager.chat_messages_for_summary(self.summarizer)
         planning_summary = ""
-        for i in history[::-1]:
+        for i in history:
             add_to_scratchpad(i)
             if "name" in i and i["name"].lower() == "summarizer" and i["content"] != None:
                 planning_summary += i["content"]
@@ -223,7 +223,6 @@ class InitialPlanner():
                 pass
         if planning_summary == "":
             print("Cannot parse plan summary!")
-        
         upgraded_prompt = f"""
         Tree of thoughts plan:
         {self.tree_of_throughts_plan}
@@ -237,6 +236,8 @@ data_management_guidelines = """
 Dataset Management Guidelines:
     - Download Location:
         - Always download and store data in the `/tmp/data/` directory.
+
+    - Always generate python code with ```python``` seperator file will be run automatically next no need to specify run command. 
 
     - Handling Nested Compressed Files:
         - After downloading a dataset (e.g., `abc.zip`), automatically detect and recursively unzip any compressed files until all data files are extracted.
@@ -342,7 +343,7 @@ class DataEngineer():
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.
-                    Then select the next role from {agentlist} to play. Only return the role.""",
+                    Then select the next role from {agentlist} to play. Only return the role. Always end with summarizer summary to drive the next ML engineerung phase.""",
         select_speaker_prompt_template = "Read the above conversation. Then select the next role from {agentlist} to play. Only return the role."
         )
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
@@ -353,7 +354,7 @@ class DataEngineer():
     def get_planner_summary(self):
         history = self.manager.chat_messages_for_summary(self.summarizer)
         planning_summary = ""
-        for i in history[::-1]:
+        for i in history:
             add_to_scratchpad(i)
             if "name" in i and i["name"].lower() == "summarizer" and i["content"] != "":
                 planning_summary += i["content"]

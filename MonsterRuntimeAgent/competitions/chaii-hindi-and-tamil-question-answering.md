@@ -66,4 +66,4 @@ kaggle competitions download -c chaii-hindi-and-tamil-question-answering
 
 Assume that the Kaggle CLI is already installed and ready to use.
 
-Top score for this task is 0.78790, we need to beat this score.
+Top score for this task is 0.78790, we need to beat this jaccard score.

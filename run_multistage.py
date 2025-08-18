@@ -343,7 +343,7 @@ class DataEngineer():
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.
-                    Then select the next role from {agentlist} to play. Only return the role. Always end with summarizer summary to drive the next ML engineerung phase.""",
+                    Then select the next role from {agentlist} to play. Only return the role. Always end with summarizer summary to drive the next ML engineerung phase. If already summarized and there are no updates go for admin as next role.""",
         select_speaker_prompt_template = "Read the above conversation. Then select the next role from {agentlist} to play. Only return the role."
         )
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
@@ -373,7 +373,7 @@ class DataEngineer():
 training_code_guideline = """
 Code Generation Guidelines for training or finetuning a model:
     - Always ensure that you write code for checkpointing the weights regularly (not too much) and saving the final weights after the process is completely executed.
-    - The model checkpoints or weights must be stored in `/tmp/model` directory. If the directory doesn't exist then it must be created before storing the mdoels in it.
+    - The model checkpoints or weights must be stored in `/tmp/model` directory, same with the case of data download it to '/tmp/data/' to persist. If the directory doesn't exist then it must be created before storing the mdoels in it.
     - Ensure that the code has proper logging and formatting for each iteration/epoch.
     - Make sure to choose appropriate model size based on existing data size and model size.Try to find most optimal model size. 
     - Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality.

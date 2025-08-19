@@ -167,9 +167,9 @@ async def solve_problem_with_search(problem_statement):
               summary = await summarize_context(content)
               summaries[url] = summary
               final_summary = final_summary+f"\n\nSummary for URL: {url}\n{summary}"
-
+    
     if final_summary!="":
-      get_final_answer = asyncio.run(retrieve_answer(problem_statement,final_summary))
+      get_final_answer = await retrieve_answer(problem_statement,final_summary)
     else:
       get_final_answer = "Unable to retrieve relevant answers"
 

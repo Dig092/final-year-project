@@ -14,6 +14,12 @@ from MonsterRuntimeAgent.Tools.ExperimentationModel import ExperimentPlanner
 from MonsterRuntimeAgent.Tools.HFDatasetScraper import get_summary_tool
 from MonsterRuntimeAgent.Tools.NetScraper import retreive_from_internet
 
+from langchain_openai import ChatOpenAI
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
+import chromadb
+
 cmodel = "claude-3-5-sonnet-20240620"
 model = "gpt-4o" 
 
@@ -35,6 +41,13 @@ config_list_claude = autogen.config_list_from_json(
     "OAI_CONFIG_LIST",
     filter_dict={
         "model": [cmodel]
+    }
+)
+
+config_list_claude_opus = autogen.config_list_from_json(
+    "OAI_CONFIG_LIST",
+    filter_dict={
+        "model": ["claude-3-opus-20240229"]
     }
 )
 
@@ -60,6 +73,12 @@ claude_config = {
 o1_config = {
     "cache_seed": 42,
     "config_list": config_list_o1,
+    "timeout": 30000,
+}
+claude_opus_config = {
+    "cache_seed": 42,
+    "temperature": 0.4,
+    "config_list": config_list_claude_opus,
     "timeout": 30000,
 }
 
@@ -121,14 +140,33 @@ You are planner that will verify vet and execute plan provided to you by user/ad
     - Non-Execution: Refrain from directly executing code or functions; focus on planning and guidance.
     - Adaptability: Be prepared to adjust plans based on new information or feedback.
     - Collaboration: Work closely with team members to drive the project toward successful completion.
+
+Make sure to choose appropriate model size based on existing data size and model size. 
+Try to find most optimal model size. 
+Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality.
 """
 plannerphase_critic_system_message = """
 Work as critic and criticise and improve planner and lead scientist final plan.
 """
-plannerphase_lead_scientist_system_message = """
+pannerphase_lead_scientist_system_message = """
 Work with critic and planner to make sure to provide feasible solution or execution plan.
 perform internet search for required research as needed to solve any contention and make sure solution is top-notch.
 """
+embeddings = OpenAIEmbeddings()
+persistent_client = chromadb.PersistentClient("conversation_history")
+collection  = persistent_client.get_or_create_collection("collection-1")
+vectorstore = Chroma(client=persistent_client,collection_name="collection-1",embedding_function=embeddings)
+
+def add_to_scratchpad(message:dict):
+    retriever = vectorstore.as_retriever(search_kwargs={'k': 2})
+    docs = [Document(page_content=message["content"],metadata={"speaker":message["name"].lower()})]
+    retriever.add_documents(docs)
+
+def retrieve_from_scratchpad(query:str)->str:
+    retriever = vectorstore.as_retriever(search_kwargs={'k': 2})
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+    return (retriever | format_docs).invoke(query)
 
 class InitialPlanner():
     def __init__(self, problem_statement):
@@ -154,17 +192,17 @@ class InitialPlanner():
             Use 'APPROVED' to indicate final approval of a plan or results.
             Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation. End with summarizer summarizing the solution""",
             code_execution_config=False,
-            human_input_mode="ALWAYS"
+            human_input_mode="NEVER"
             )
         self.user_proxy =  autogen.UserProxyAgent(
             name="user_proxy",
-            system_message="""user proxy to perform require function calls to aid scientist.""",
+            system_message="""user proxy  to perform require function calls to aid scientist.""",
             code_execution_config=False,
             human_input_mode="NEVER"
         )
         self.planner = create_agent("Planner", system_message=plannerphase_planner_system_message, llm_config=gpt4_config)
         self.critic = create_agent("Critic", system_message = plannerphase_critic_system_message, llm_config = claude_config)
-        self.lead_scientist = create_agent("LeadScientist", system_message=plannerphase_lead_scientist_system_message, llm_config = claude_config)
+        self.lead_scientist = create_agent("LeadScientist", system_message=pannerphase_lead_scientist_system_message, llm_config = claude_config)
         self.summarizer = create_agent("Summarizer", system_message="Summarize plan in detail along with refined problem statement solutions to follow and other critical conclusions from this planning group session dont include.", llm_config = claude_config)
     
     def register_function_calls(self):
@@ -178,7 +216,7 @@ class InitialPlanner():
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.
-                    Then select the next role from {agentlist} to play. Only return the role.""",
+                    Then select the next role from {agentlist} to play. Only return the role. Always trigger summarizer only the end of task.""",
         select_speaker_prompt_template = "Read the above conversation. Then select the next role from {agentlist} to play. Only return the role."
         )
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
@@ -187,17 +225,17 @@ class InitialPlanner():
         self.user_proxy.initiate_chat(self.manager, message=str(self.tree_of_throughts_plan))
 
     def get_planner_summary(self):
-        history = self.summarizer.chat_messages_for_summary(self.summarizer)
-        planning_summary = None
+        history = self.manager.chat_messages_for_summary(self.summarizer)
+        planning_summary = ""
         for i in history:
-            if "name" in i and i["name"].lower() == "summarizer":
-                planning_summary = i["content"]
+            add_to_scratchpad(i)
+            if "name" in i and i["name"].lower() == "summarizer" and i["content"] != None:
+                planning_summary += i["content"]
+                break
             else:
                 pass
-
-        if planning_summary == None:
+        if planning_summary == "":
             print("Cannot parse plan summary!")
-        
         upgraded_prompt = f"""
         Tree of thoughts plan:
         {self.tree_of_throughts_plan}
@@ -205,15 +243,14 @@ class InitialPlanner():
         Planning phase summary:
         {planning_summary}
         """
-
-        print(f"Testing: {history}")
-
         return upgraded_prompt
 
 data_management_guidelines = """
 Dataset Management Guidelines:
     - Download Location:
         - Always download and store data in the `/tmp/data/` directory.
+
+    - Always generate python code with ```python``` seperator file will be run automatically next no need to specify run command. 
 
     - Handling Nested Compressed Files:
         - After downloading a dataset (e.g., `abc.zip`), automatically detect and recursively unzip any compressed files until all data files are extracted.
@@ -227,28 +264,44 @@ Dataset Management Guidelines:
 
     - Data Efficiency:
         - Manage data efficiently to ensure smooth access and prevent redundancy.
+
+    - Dependencies:
+        - Always assume that Kaggle CLI and Huggingface CLI are already installed and are ready to be used. No need to install or set them up again.
+
+Give me the full code, so I can copy and paste it on one go. Do not summarise things like //rest of function here. The intent is so I Can copy and paste things seamslessly, since I am very lazy.
 """
 
-lead_data_engineer_system_message = f"""You are a Lead Data engineer. Dont use underscore when naming the agent. Look at the Plan provided by planning phase.
-Plan how junior data engineer can load and transform the dataset as per the TOT plan.
-Do not generate any code.
-Plan the data engineering part of the pipeline.
-Provide a clear unambigious step by step instruction to junior data engineer to write the code.
-Also only make engineers use pytorch instead of tensorflow.
+data_engineer_system_message = f"""
+You are the core data engineer in an ML team.
+
+Refer to the Planning phase summary and the tree of thought plan to perform these tasks:
+1. Perform Dataset Analysis and Acquisition:
+    - If a dataset is mentioned:
+        - Write efficient Python or Bash scripts to download, parse, and manage the dataset.
+        - Perform exploratory data analysis (EDA) to understand the dataset's structure and representation.
+
+    - If a dataset is not provided:
+        - Identify relevant online datasets for the problem statement.
+        - Use the `retreive_from_internet` tool to search for datasets online.
+        - Utilize the `get_summary` tool to obtain summaries of datasets from platforms like Hugging Face.
+        
+    - If a Kaggle dataset download command is provided, assume the Kaggle CLI is installed and proceed to download using the command.
+
+2. Provide a data processing pipeline:
+    - Prepare and manage datasets effectively for machine learning tasks, ensuring that all data is properly acquired, processed, and organized for subsequent steps in the AI development pipeline. Leverage your expertise to streamline data handling and provide clear, executable code solutions.
+    - Based on this you can produce a final report that provides details on the data processing pipeline that includes details such as what is the dataset structure, where is it stored, code for using it and any other relevant information.
+
+3. Once the data has been downloaded, extracted and stored in `/tmp/data`, generate the final code if needed for data processing pipeline that the ML engineering team can use. Store that file in /tmp/data_processing.py and provide that information further once saved.
 
 Always Remember:
-{data_management_guidelines}
-"""  
+- Always provide complete code.
+- Prefer OOPS and Modular programming for easier debugging and resuablity.
+- Always use pytorch instead of tensorflow.
+- {data_management_guidelines}
 
-junior_data_engineer_system_message = f"""You are a junior data engineer and 
-your task is to write code using the instructions provided by the lead data engineer.
-You are also tasked with fixing bad code as per the suggestions given by the debugger.
-Generate only the code for execution and nothing else.
-Prefer OOPS and Modular programming for easier debugging and resuablity.
-Also only make engineers use pytorch instead of tensorflow.
-
-Always Remember:
-{data_management_guidelines}
+Not to do:
+- Do not write code for training or finetuning tasks. You are not an ML engineer. 
+- Do not provide imcomplete code. 
 """
 
 executor_system_message = """You are the Executor responsible for running code and experiments. Your tasks include:
@@ -261,16 +314,25 @@ executor_system_message = """You are the Executor responsible for running code a
 7. Adhering to safety protocols when executing potentially risky code.
 8. Maintaining a clean execution environment between runs to prevent interference."""
 
-debugger_system_message = f""" You are a debugger whose task is to debug the code generated by junior data engineer and suggest fixes.
-read the traceback carefully and try to understand what is causing the issue.
-suggest exact fixes that needs to be done clearly.
-Explain the junior data engineer why the code is failing and what needs to be fixed in order for the code to execute.
-Also only make engineers use pytorch instead of tensorflow
+debugger_system_message = f"""
+You are a debugger whose task is to debug the code generated by data engineer and suggest fixes in form of complete code and not code snippets.
+Read the traceback carefully and try to understand what is causing the issue.
+Suggest complete code replacement that has bug fixes in it.
+Explain the Data engineer why the code is failing and what needs to be fixed in order for the code to execute.
+Always use pytorch instead of tensorflow.
 
 Always Remember:
 {data_management_guidelines}
 """
 
+data_summarizer_system_message = f"""
+Summarize the execution details of Data engineers. This data processing pipeline summary will be used by machine Leaning Engineers to train or finetune models.
+
+Make sure to include:
+1. The final working code and related information that represents data processing pipeline.
+3. Details about how the data is loaded and where it is stored it's variable name etc,. 
+4. A list of errors and exceptions to be avoided while accessing or using the dataset.
+"""
 
 
 class DataEngineer():
@@ -295,25 +357,28 @@ class DataEngineer():
             code_execution_config=False,
             human_input_mode="ALWAYS"
             )
-        self.lead_data_engineer = create_agent("LeadDataEngineer", system_message=lead_data_engineer_system_message, llm_config=gpt4_config)
-        self.junior_data_engineer = create_agent("JuniorDataEngineer", system_message = junior_data_engineer_system_message, llm_config = claude_config)
+        # self.lead_data_engineer = create_agent("LeadDataEngineer", system_message=lead_data_engineer_system_message, llm_config=gpt4_config)
+        self.data_engineer = create_agent("DataEngineer", system_message = data_engineer_system_message, llm_config = gpt4_config)
         self.executor = autogen.UserProxyAgent(name="Executor",system_message=executor_system_message,human_input_mode="NEVER",code_execution_config={"last_n_messages": 2,"executor": self.executor},)
         self.debugger = create_agent("Debugger",system_message=debugger_system_message,llm_config=claude_config)
-        self.summarizer = create_agent("Summarizer", system_message="Summarize the execution details exclude the errors and exceptions occoured. Give details about how the data is loaded and where it is stored it's variable name etc,. Summary will be used by machine Leaning Engineer to use the loaded the data to train models", llm_config = gpt4_config)
+        self.summarizer = create_agent("Summarizer", system_message=data_summarizer_system_message, llm_config = gpt4_config)
     
     def register_function_calls(self):
-        autogen.register_function(retreive_from_internet, caller=self.junior_data_engineer, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
+        autogen.register_function(retreive_from_internet, caller=self.data_engineer, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
         autogen.register_function(retreive_from_internet, caller=self.debugger, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
+        # autogen.register_function(retrieve_from_scratchpad, caller=self.lead_data_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.data_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.debugger, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
 
     def setup_groupchat(self):
         self.groupchat = autogen.GroupChat(
-        agents=[self.admin, self.lead_data_engineer, self.junior_data_engineer, self.executor,self.debugger,self.summarizer],
+        agents=[self.admin, self.data_engineer, self.executor,self.debugger,self.summarizer],
         messages=[],
-        max_round=10,
+        max_round=15,
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.
-                    Then select the next role from {agentlist} to play. Only return the role.""",
+                    Then select the next role from {agentlist} to play. Only return the role. Always end with summarizer summary to drive the next ML engineerung phase.""",
         select_speaker_prompt_template = "Read the above conversation. Then select the next role from {agentlist} to play. Only return the role."
         )
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
@@ -322,14 +387,17 @@ class DataEngineer():
         self.admin.initiate_chat(self.manager, message=self.original_problem_statement)
 
     def get_planner_summary(self):
-        history = self.summarizer.chat_messages_for_summary(self.summarizer)
-        planning_summary = None
+        history = self.manager.chat_messages_for_summary(self.summarizer)
+        planning_summary = ""
         for i in history:
-            if i["name"].lower() == "summarizer":
-                planning_summary = i["content"]
+            add_to_scratchpad(i)
+            if "name" in i and i["name"].lower() == "summarizer" and i["content"] != "":
+                planning_summary += i["content"]
+                break
             else:
                 pass
-            
+        if planning_summary == "":
+            print("Cannot parse plan summary!")
         upgraded_prompt = f"""
             Data Engineering phase summary:
             {planning_summary}
@@ -339,9 +407,12 @@ class DataEngineer():
 
 training_code_guideline = """
 Code Generation Guidelines for training or finetuning a model:
+    - Always give me the full code, so i can copy and paste it on one go. Do not summarise things like //rest of function here. The intent is so I Can copy and paste things seamslessly, since I am very lazy.
     - Always ensure that you write code for checkpointing the weights regularly (not too much) and saving the final weights after the process is completely executed.
     - The model checkpoints or weights must be stored in `/tmp/model` directory. If the directory doesn't exist then it must be created before storing the mdoels in it.
     - Ensure that the code has proper logging and formatting for each iteration/epoch.
+    - Make sure to choose appropriate model size based on existing data size and model size.Try to find most optimal model size. 
+    - Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality.
 """
 
 lead_machine_learning_engineer_system_message = f"""
@@ -351,6 +422,9 @@ Based on the execution logs of the data engineer and plan given by the planner d
 Do not generate any code.
 Plan the Machine Learning part of the pipeline.
 Provide a clear unambigious step by step instruction to junior machine learning engineer to write the code.
+
+Always suggest first run a smaller experiment to first decide on hyperparameters and make sure to optimize the batchsize for best/faster training and 
+then proceed to complete model finetuning.
 
 {training_code_guideline}
 """
@@ -365,12 +439,14 @@ Prefer OOPS and Modular programming for easier debugging and resuablity.
 
 Always Remember:
 {training_code_guideline}
+Always first run a smaller experiment to first decide on hyperparameters and make sure to optimize the batchsize for best/faster training and 
+then proceed to complete model finetuning.
 """
 
 ml_debugger_system_message = f""" You are a debugger whose task is to debug the code generated by junior machine learning engineer and suggest fixes.
 read the traceback carefully and try to understand what is causing the issue.
 suggest exact fixes that needs to be done clearly.
-Eplain the junior data engineer why the code is failing and what nees to be fixed in order for the code to execute.
+Explain the junior machine learning engineer why the code is failing and what nees to be fixed in order for the code to execute.
 
 Always Remember:
 {training_code_guideline}
@@ -418,12 +494,15 @@ class MachineLearningEngineer():
         autogen.register_function(retreive_from_internet, caller=self.junior_machine_learning_engineer, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
         autogen.register_function(retreive_from_internet, caller=self.debugger, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
         autogen.register_function(retreive_from_internet, caller=self.hyperparam_tuner, executor=self.executor, name="retreive_from_internet", description="Search internet and find context from internet.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.junior_machine_learning_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.lead_machine_learning_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(retrieve_from_scratchpad, caller=self.debugger, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
 
     def setup_groupchat(self):
         self.groupchat = autogen.GroupChat(
         agents=[self.admin, self.lead_machine_learning_engineer, self.junior_machine_learning_engineer, self.executor,self.debugger,self.hyperparam_tuner],
         messages=[],
-        max_round=30,
+        max_round=50,
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.
@@ -448,8 +527,14 @@ if __name__ == "__main__":
     print(100*'#')
     print("Welcome to NeoV2 MonsterAPI Research Agent!\nI have a team of Engineer, GPU Code Executor, Research Scientist, Planner and a Critic! Go ahead and give me a AIML Development task!\n ")
     print(100*'#')
+    import sys
+    
+    try:
+        file_n = sys.argv[1]
+    except IndexError:
+        file_n = "dogs-vs-cats-redux-kernels-edition.md"
 
-    path = "MonsterRuntimeAgent/competitions/chaii-hindi-and-tamil-question-answering.md"
+    path = f"MonsterRuntimeAgent/competitions/{file_n}"
 
     message = open(path).read()
     # message = input("Enter Your Task here:")
@@ -471,5 +556,4 @@ if __name__ == "__main__":
     plan = planner.get_planner_summary()
     data_engineer = DataEngineer(problem_statement=plan,executor=monster_executor)
     data_engineering_execution_journal = data_engineer.get_planner_summary()
-    print(f"Data journal: {data_engineering_execution_journal}")
     ml_engineer = MachineLearningEngineer(problem_statement=data_engineering_execution_journal,tree_of_thougts_plan=planner.tree_of_throughts_plan,executor=monster_executor)

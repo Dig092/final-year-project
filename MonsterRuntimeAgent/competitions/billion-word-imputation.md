@@ -2,9 +2,9 @@
 
 Given sentences with one word removed, create a model capable of inserting back the correct missing word at the correct location in the sentence.
 
-# Task
+# Evaluation Metric
 
-Levenshtein distance between submitted sentences and the original sentences.
+Levenshtein distance between submitted sentences and the original sentences. Top score for this task is 3.83875, we need to beat this score.
 
 # Submission Format
 
@@ -36,4 +36,3 @@ Dataset can be downloaded using Kaggle CLI with this command:
 kaggle competitions download -c billion-word-imputation
 ```
 
-Top score for this task is 3.83875, we need to beat this score.

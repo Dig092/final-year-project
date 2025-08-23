@@ -250,7 +250,7 @@ Dataset Management Guidelines:
     - Download Location:
         - Always download and store data in the `/tmp/data/` directory.
 
-    - Always generate python code with ```python``` seperator file will be run automatically next no need to specify run command. 
+    - Always generate code in python language only. Use code blocks with language specification, e.g., ```python``` seperator file will be run automatically next no need to specify run command. 
 
     - Handling Nested Compressed Files:
         - After downloading a dataset (e.g., `abc.zip`), automatically detect and recursively unzip any compressed files until all data files are extracted.
@@ -355,7 +355,7 @@ class DataEngineer():
             Use 'APPROVED' to indicate final approval of a plan or results.
             Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation.""",
             code_execution_config=False,
-            human_input_mode="ALWAYS"
+            human_input_mode="NEVER"
             )
         # self.lead_data_engineer = create_agent("LeadDataEngineer", system_message=lead_data_engineer_system_message, llm_config=gpt4_config)
         self.data_engineer = create_agent("DataEngineer", system_message = data_engineer_system_message, llm_config = gpt4_config)
@@ -409,7 +409,7 @@ training_code_guideline = """
 Code Generation Guidelines for training or finetuning a model:
     - Always give me the full code, so i can copy and paste it on one go. Do not summarise things like //rest of function here. The intent is so I Can copy and paste things seamslessly, since I am very lazy.
     - Always ensure that you write code for checkpointing the weights regularly (not too much) and saving the final weights after the process is completely executed.
-    - The model checkpoints or weights must be stored in `/tmp/model` directory. If the directory doesn't exist then it must be created before storing the mdoels in it.
+    - The model checkpoints or weights must be stored in `/tmp/model` directory. If the directory doesn't exist then it must be created before storing the models in it.
     - Ensure that the code has proper logging and formatting for each iteration/epoch.
     - Make sure to choose appropriate model size based on existing data size and model size.Try to find most optimal model size. 
     - Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality.
@@ -482,7 +482,7 @@ class MachineLearningEngineer():
             Use 'APPROVED' to indicate final approval of a plan or results.
             Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation.""",
             code_execution_config=False,
-            human_input_mode="ALWAYS"
+            human_input_mode="NEVER"
             )
         self.lead_machine_learning_engineer = create_agent("LeadMachineLearningEngineer", system_message=lead_machine_learning_engineer_system_message, llm_config=gpt4_config)
         self.junior_machine_learning_engineer = create_agent("JuniorMachineLearningEngineer", system_message =  junior_machine_learning_engineer_system_message, llm_config = claude_config)
@@ -532,7 +532,7 @@ if __name__ == "__main__":
     try:
         file_n = sys.argv[1]
     except IndexError:
-        file_n = "dogs-vs-cats-redux-kernels-edition.md"
+        file_n = "facebook-recruiting-iii-keyword-extraction.md"
 
     path = f"MonsterRuntimeAgent/competitions/{file_n}"
 

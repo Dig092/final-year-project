@@ -2,9 +2,8 @@
 
 Given a dataset of images of dogs, predict the breed of each image.
 
-# Metric
-
-Multi Class Log Loss.
+# Evaluation Metric
+Multi Class Log Loss. Multilcass log loss should reach 0.00 previous winner value
 
 # Submission Format
 
@@ -31,7 +30,3 @@ kaggle competitions download -c dog-breed-identification
 ```
 
 Assume that the Kaggle CLI is already installed and ready to use.
-
-
-# Evaluation Metric
-Multilcass log loss should reach 0.00 previous winner value

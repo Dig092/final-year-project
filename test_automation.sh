@@ -30,7 +30,7 @@ while IFS= read -r name; do
     
     # Second run
     echo "Starting second run for $name"
-    python run_multistage_2.py "$name.md" > "logs/${name}_2.log" 2>&1
+    python3 run_multistage_2.py "$name.md" > "logs/${name}_2.log" 2>&1
     echo "Completed second run for $name"
     
 done < "$competition_list"

@@ -502,7 +502,7 @@ class MachineLearningEngineer():
         self.groupchat = autogen.GroupChat(
         agents=[self.admin, self.lead_machine_learning_engineer, self.junior_machine_learning_engineer, self.executor,self.debugger,self.hyperparam_tuner],
         messages=[],
-        max_round=50,
+        max_round=70,
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.

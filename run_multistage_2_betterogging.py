@@ -28,7 +28,8 @@ def generate_log_filename():
     return f"logs/runtime_{timestamp}.log"
 
 # Ensure the logs directory exists
-os.makedirs("logs", exist_ok=True)
+os.makedirs("autogen_logs", exist_ok=True)
+os.makedirs("autogen_logs/logs", exist_ok=True)
 
 log_filename = generate_log_filename()
 logging_session_id = autogen.runtime_logging.start(logger_type="file", config={"filename": log_filename})

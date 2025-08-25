@@ -7,7 +7,6 @@ from autogen import register_function
 from autogen.agentchat.contrib.capabilities.transform_messages import TransformMessages
 from autogen.agentchat.contrib.capabilities.transforms import MessageHistoryLimiter, MessageTokenLimiter
 from autogen.agentchat.contrib.capabilities.teachability import Teachability
-from autogen_core.application.logging import TRACE_LOGGER_NAME, EVENT_LOGGER_NAME
 
 from MonsterRuntimeAgent.MonsterRuntimeCodeExecutor import MonsterRemoteCommandLineCodeExecutor
 from MonsterRuntimeAgent.Tools.RuntimeTools import MonsterNeoCodeRuntimeClient
@@ -30,6 +29,9 @@ def generate_log_filename():
 
 # Ensure the logs directory exists
 os.makedirs("logs", exist_ok=True)
+
+log_filename = generate_log_filename()
+logging_session_id = autogen.runtime_logging.start(logger_type="file", config={"filename": log_filename})
 
 cmodel = "claude-3-5-sonnet-20240620"
 model = "gpt-4o" 

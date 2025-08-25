@@ -38,4 +38,4 @@ fi
 
 echo "Docker container is running on port 8000."
 
-docker push $IMAGE_NAME
+#docker push $IMAGE_NAME

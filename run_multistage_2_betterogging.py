@@ -23,53 +23,13 @@ import chromadb
 import logging
 from datetime import datetime
 
-# Global log file name for the session
-log_filename = f"logs/session_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+# Define a function to generate a unique log filename each run
+def generate_log_filename():
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"logs/runtime_{timestamp}.log"
 
 # Ensure the logs directory exists
 os.makedirs("logs", exist_ok=True)
-
-# Basic configuration for logging to the unique file
-logging.basicConfig(
-    filename=log_filename,
-    level=logging.DEBUG,  # Set base level to capture all logs in file
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
-# Set up trace logger
-trace_logger = logging.getLogger(TRACE_LOGGER_NAME)
-trace_logger.setLevel(logging.DEBUG)
-
-# Set up structured logger for events
-event_logger = logging.getLogger(EVENT_LOGGER_NAME)
-event_logger.setLevel(logging.INFO)
-
-# Define a structured event class for use in event logging
-@dataclass
-class StructuredEvent:
-    timestamp: str
-    event_type: str
-    details: str
-
-# Custom handler for structured logging events
-class StructuredEventHandler(logging.Handler):
-    def emit(self, record: logging.LogRecord) -> None:
-        if isinstance(record.msg, StructuredEvent):
-            with open(log_filename, "a") as f:
-                f.write(f"Structured Log - Time: {record.msg.timestamp}, "
-                        f"Type: {record.msg.event_type}, Details: {record.msg.details}\n")
-
-# Attach the structured event handler to the event logger
-structured_event_handler = StructuredEventHandler()
-event_logger.addHandler(structured_event_handler)
-
-# Example of emitting logs in the script
-trace_logger.debug("Debug trace: Initializing the system.")
-event_logger.info(StructuredEvent(
-    timestamp=datetime.now().isoformat(),
-    event_type="Initialization",
-    details="System initialization complete."
-))
 
 cmodel = "claude-3-5-sonnet-20240620"
 model = "gpt-4o" 
@@ -602,9 +562,11 @@ if __name__ == "__main__":
 
     print("Your GPU Runtime is ready for action, Proceeding!")
     print(100*'#')
-
-    planner = InitialPlanner(problem_statement=message)
-    plan = planner.get_planner_summary()
-    data_engineer = DataEngineer(problem_statement=plan,executor=monster_executor)
-    data_engineering_execution_journal = data_engineer.get_planner_summary()
-    ml_engineer = MachineLearningEngineer(problem_statement=data_engineering_execution_journal,tree_of_thougts_plan=planner.tree_of_throughts_plan,executor=monster_executor)
+    try:
+        planner = InitialPlanner(problem_statement=message)
+        plan = planner.get_planner_summary()
+        data_engineer = DataEngineer(problem_statement=plan,executor=monster_executor)
+        data_engineering_execution_journal = data_engineer.get_planner_summary()
+        ml_engineer = MachineLearningEngineer(problem_statement=data_engineering_execution_journal,tree_of_thougts_plan=planner.tree_of_throughts_plan,executor=monster_executor)
+    except KeyboardInterrupt as e:
+        autogen.runtime_logging.stop()

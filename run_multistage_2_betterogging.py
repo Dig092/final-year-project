@@ -13,6 +13,7 @@ from MonsterRuntimeAgent.Tools.RuntimeTools import MonsterNeoCodeRuntimeClient
 from MonsterRuntimeAgent.Tools.ExperimentationModel import ExperimentPlanner
 from MonsterRuntimeAgent.Tools.HFDatasetScraper import get_summary_tool
 from MonsterRuntimeAgent.Tools.NetScraper import retreive_from_internet
+from MonsterRuntimeAgent.Tools.OpenAITools import talk_with_expert
 
 from langchain_openai import ChatOpenAI
 from langchain_chroma import Chroma
@@ -21,6 +22,7 @@ from langchain_core.documents import Document
 import chromadb
 import logging
 from datetime import datetime
+    
 
 # Define a function to generate a unique log filename each run
 def generate_log_filename():
@@ -511,6 +513,8 @@ class MachineLearningEngineer():
         autogen.register_function(retrieve_from_scratchpad, caller=self.junior_machine_learning_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
         autogen.register_function(retrieve_from_scratchpad, caller=self.lead_machine_learning_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
         autogen.register_function(retrieve_from_scratchpad, caller=self.debugger, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(talk_with_expert, caller=self.lead_machine_learning_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(talk_with_expert, caller=self.debugger, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
 
     def setup_groupchat(self):
         self.groupchat = autogen.GroupChat(
@@ -520,7 +524,7 @@ class MachineLearningEngineer():
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.
-                    Then select the next role from {agentlist} to play. Only return the role.""",
+                    Then select the next role from {agentlist} to play. Only return the role. If you cant figure out next step talk with expert to figure out next plan.""",
         select_speaker_prompt_template = "Read the above conversation. Then select the next role from {agentlist} to play. Only return the role."
         )
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)

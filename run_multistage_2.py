@@ -534,6 +534,11 @@ if __name__ == "__main__":
     except IndexError:
         file_n = "facebook-recruiting-iii-keyword-extraction.md"
 
+    try:
+        token = sys.argv[2]
+    except IndexError:
+        token = None
+
     path = f"MonsterRuntimeAgent/competitions/{file_n}"
 
     message = open(path).read()
@@ -547,7 +552,7 @@ if __name__ == "__main__":
     print(".")
 
     client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower(), cpu_count=16, memory = 32)
-    monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
+    monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client, token = token)
 
     print("Your GPU Runtime is ready for action, Proceeding!")
     print(100*'#')

@@ -168,6 +168,7 @@ pannerphase_lead_scientist_system_message = """
 Work with critic and planner to make sure to provide feasible solution or execution plan.
 perform internet search for required research as needed to solve any contention and make sure solution is top-notch.
 """
+
 embeddings = OpenAIEmbeddings()
 persistent_client = chromadb.PersistentClient("conversation_history")
 collection  = persistent_client.get_or_create_collection("collection-1")
@@ -309,6 +310,8 @@ Refer to the Planning phase summary and the tree of thought plan to perform thes
 
 3. Once the data has been downloaded, extracted and stored in `/tmp/data`, generate the final code if needed for data processing pipeline that the ML engineering team can use. Store that file in /tmp/data_processing.py and provide that information further once saved.
 
+4. Dont venture into ML unless to clean of process the data your main aim is to only process and prep the data to be used by further agents.
+
 Always Remember:
 - Always provide complete code.
 - Prefer OOPS and Modular programming for easier debugging and resuablity.
@@ -345,9 +348,9 @@ data_summarizer_system_message = f"""
 Summarize the execution details of Data engineers. This data processing pipeline summary will be used by machine Leaning Engineers to train or finetune models.
 
 Make sure to include:
-1. The final working code and related information that represents data processing pipeline.
-3. Details about how the data is loaded and where it is stored it's variable name etc,. 
-4. A list of errors and exceptions to be avoided while accessing or using the dataset.
+1. Code snippet to load and use the dataset
+2. Context to understand the data location, structure on local.
+3. Size, volume and other format information about the dataset.
 """
 
 

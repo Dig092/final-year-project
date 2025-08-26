@@ -58,6 +58,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         """
         super().__init__(*args, **kwargs)
         self.client = client
+        self.session_info = self.client.session_manager.create_session()
         atexit.register(self.cleanup)
 
     def _extract_filename_from_code(self, code: str) -> Optional[str]:
@@ -340,7 +341,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         logs_all = ""  # Ensure logs_all is always a string
         exit_code = 0
         filename = None
-        session_id = None
+        session_id = self.session_info["coding_session_id"]
         error_output = ""  # Ensure error_output is always initialized
         try:
             # Retry mechanism for connection issues
@@ -349,9 +350,9 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 try:
                     saved_files = []
                     # Create a new session
-                    session_info = self.client.session_manager.create_session()
-                    session_id = session_info["coding_session_id"]
-                    logger.info(f"Session created with ID: {session_id}")
+                    #session_info = self.client.session_manager.create_session()
+                    #session_id = self.session_info["coding_session_id"]
+                    logger.info(f"Attaching to session created with ID: {session_id}")
                     break
                 except (ConnectionError, Timeout) as e:
                     retries -= 1

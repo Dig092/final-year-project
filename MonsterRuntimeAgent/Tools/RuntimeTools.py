@@ -124,9 +124,17 @@ class SessionManager:
         Creates a new coding session.
         :return: The session information.
         """
-        url = f"{self.runtime_url}/session/create"
-        response = requests.post(url, headers=self.headers)
-        return self._handle_response(response)
+        retries = 0
+        while retries < 10:
+            retries += 1
+            try:
+                url = f"{self.runtime_url}/session/create"
+                response = requests.post(url, headers=self.headers)
+                return self._handle_response(response)
+            except Exception as e:
+                time.sleep(0.2)
+
+        raise RuntimeError("Cannot Create Session!")
 
     def close_session(self, coding_session_id: str):
         """

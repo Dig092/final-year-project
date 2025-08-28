@@ -516,8 +516,8 @@ class MachineLearningEngineer():
         autogen.register_function(retrieve_from_scratchpad, caller=self.junior_machine_learning_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
         autogen.register_function(retrieve_from_scratchpad, caller=self.lead_machine_learning_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
         autogen.register_function(retrieve_from_scratchpad, caller=self.debugger, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
-        autogen.register_function(talk_with_expert, caller=self.lead_machine_learning_engineer, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
-        autogen.register_function(talk_with_expert, caller=self.debugger, executor=self.executor, name="retreive_from_scratchpad", description="Search the scratchpad to find what happened before to further proceed.")
+        autogen.register_function(talk_with_expert, caller=self.lead_machine_learning_engineer, executor=self.executor, name="talk_with_expert", description="Talk with ML expert to solve the roadblock or problem")
+        autogen.register_function(talk_with_expert, caller=self.debugger, executor=self.executor, name="talk_with_expert", description="Talk with ML expert to solve the roadblock or problem")
 
     def setup_groupchat(self):
         self.groupchat = autogen.GroupChat(

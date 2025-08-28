@@ -474,7 +474,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             exit_code = 1
 
         finally:
-            if session_id:
+            if False:
                 try:
                     self.client.session_manager.close_session(session_id)
                     logger.info(f"Session {session_id} closed successfully.")

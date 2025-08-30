@@ -24,10 +24,17 @@ import logging
 from datetime import datetime
     
 
+import sys
+    
+try:
+    file_n = sys.argv[1]
+except IndexError:
+    file_n = "facebook-recruiting-iii-keyword-extraction.md"
+
 # Define a function to generate a unique log filename each run
 def generate_log_filename():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"logs/runtime_{timestamp}.log"
+    return f"logs/runtime_{file_n}_{timestamp}.log"
 
 # Ensure the logs directory exists
 os.makedirs("autogen_logs", exist_ok=True)
@@ -548,12 +555,6 @@ if __name__ == "__main__":
     print(100*'#')
     print("Welcome to NeoV2 MonsterAPI Research Agent!\nI have a team of Engineer, GPU Code Executor, Research Scientist, Planner and a Critic! Go ahead and give me a AIML Development task!\n ")
     print(100*'#')
-    import sys
-    
-    try:
-        file_n = sys.argv[1]
-    except IndexError:
-        file_n = "facebook-recruiting-iii-keyword-extraction.md"
 
     path = f"MonsterRuntimeAgent/competitions/{file_n}"
 

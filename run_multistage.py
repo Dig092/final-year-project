@@ -377,11 +377,11 @@ Code Generation Guidelines for training or finetuning a model:
     - Ensure that the code has proper logging and formatting for each iteration/epoch.
     - Make sure to choose appropriate model size based on existing data size and model size.Try to find most optimal model size. 
     - Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality.
+    - Only use pytorch dont use tensorflow.
 """
 
 lead_machine_learning_engineer_system_message = f"""
 You are a Lead ML Engineer and our task is to plan the training of models to beat4 the problem statement.
-Data is already loaded and prepared for you from the data engineer. 
 Based on the execution logs of the data engineer and plan given by the planner devise experiments to train models.
 Do not generate any code.
 Plan the Machine Learning part of the pipeline.
@@ -497,6 +497,12 @@ if __name__ == "__main__":
     except IndexError:
         file_n = "dog-breed-prediction.md"
 
+    
+    try:
+        token = sys.argv[2]
+    except IndexError:
+        token = None
+
     path = f"MonsterRuntimeAgent/competitions/{file_n}"
 
     message = open(path).read()
@@ -509,7 +515,7 @@ if __name__ == "__main__":
     time.sleep(1)
     print(".")
 
-    client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower(), cpu_count=16, memory = 32)
+    client = MonsterNeoCodeRuntimeClient(container_type=MODE.lower(), token=token, cpu_count=16, memory = 32)
     monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
 
     print("Your GPU Runtime is ready for action, Proceeding!")

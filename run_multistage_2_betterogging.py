@@ -41,7 +41,7 @@ os.makedirs("autogen_logs", exist_ok=True)
 os.makedirs("autogen_logs/logs", exist_ok=True)
 
 log_filename = generate_log_filename()
-logging_session_id = autogen.runtime_logging.start(logger_type="file", config={"filename": log_filename})
+#logging_session_id = autogen.runtime_logging.start(logger_type="file", config={"filename": log_filename})
 
 cmodel = "claude-3-5-sonnet-20240620"
 model = "gpt-4o" 
@@ -271,9 +271,6 @@ class InitialPlanner():
 
 data_management_guidelines = """
 Dataset Management Guidelines:
-    - Download Location:
-        - Always download and store data in the `/tmp/data/` directory.
-
     - Always generate code in python language only. Use code blocks with language specification, e.g., ```python``` seperator file will be run automatically next no need to specify run command. 
 
     - Handling Nested Compressed Files:
@@ -283,7 +280,7 @@ Dataset Management Guidelines:
         - Include code to install any necessary utilities (e.g., `unzip`, `tar`) before attempting to extract files.
 
     - Data Organization:
-        - Store data in a structured manner within `/tmp/data/`, creating subdirectories as needed.
+        - Store data in a structured manner within `./`, creating subdirectories as needed.
         - Ensure the directory structure reflects the dataset's organization (e.g., separate folders for train, test, etc.).
 
     - Data Efficiency:
@@ -433,12 +430,14 @@ class DataEngineer():
 
 training_code_guideline = """
 Code Generation Guidelines for training or finetuning a model:
+    - Progree experiment in phases
+        - First phase decide and run the model for few minibatches to make sure code generated runs without any error resolve errors end to end first, also find max batch size possible. Dont proceed to next phase without first creating a end to end training code including data loading and model saving in a dryrun.
+        - Then proceed to second phase running working code with updated more suited hyparameters at scale.
     - Always give me the full code, so i can copy and paste it on one go. Do not summarise things like //rest of function here. The intent is so I Can copy and paste things seamslessly, since I am very lazy.
-    - Always ensure that you write code for checkpointing the weights regularly (not too much) and saving the final weights after the process is completely executed.
     - The model checkpoints or weights must be stored in `/tmp/model` directory. If the directory doesn't exist then it must be created before storing the models in it.
     - Ensure that the code has proper logging and formatting for each iteration/epoch.
     - Make sure to choose appropriate model size based on existing data size and model size.Try to find most optimal model size. 
-    - Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality.
+    - Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality. use proper defaults and above phase based approach to find, train and iterate faster.
 """
 
 lead_machine_learning_engineer_system_message = f"""
@@ -580,4 +579,5 @@ if __name__ == "__main__":
         data_engineering_execution_journal = data_engineer.get_planner_summary()
         ml_engineer = MachineLearningEngineer(problem_statement=data_engineering_execution_journal,tree_of_thougts_plan=planner.tree_of_throughts_plan,executor=monster_executor)
     except KeyboardInterrupt as e:
-        autogen.runtime_logging.stop()
+        #autogen.runtime_logging.stop()
+        pass

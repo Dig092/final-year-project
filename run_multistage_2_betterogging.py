@@ -430,14 +430,21 @@ class DataEngineer():
 
 training_code_guideline = """
 Code Generation Guidelines for training or finetuning a model:
-    - Progree experiment in phases
-        - First phase decide and run the model for few minibatches to make sure code generated runs without any error resolve errors end to end first, also find max batch size possible. Dont proceed to next phase without first creating a end to end training code including data loading and model saving in a dryrun.
-        - Then proceed to second phase running working code with updated more suited hyparameters at scale.
     - Always give me the full code, so i can copy and paste it on one go. Do not summarise things like //rest of function here. The intent is so I Can copy and paste things seamslessly, since I am very lazy.
     - The model checkpoints or weights must be stored in `/tmp/model` directory. If the directory doesn't exist then it must be created before storing the models in it.
     - Ensure that the code has proper logging and formatting for each iteration/epoch.
     - Make sure to choose appropriate model size based on existing data size and model size.Try to find most optimal model size. 
     - Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality. use proper defaults and above phase based approach to find, train and iterate faster.
+    - Over LSTMS prefer to use transformers or faster altenatives.
+"""
+
+experimentation_guidelines = """
+Perform Experimentation and develop in phases below:
+
+1. Data Engineering Phase - Understand, analyze and perform ETL transforms and save the data until data loading .
+2. Minimal Code Run Phase - Use Data load a subset to few minibatches and perform complete train, valid and save workflow one time.
+3. Trail 1 Phase - Run experiment for 1 epoch on whole data to optimize hyparameters, batchsize end to end.
+4. Experimentation Phase - Extend code to run on complete data make sure code has not bugs, run with optimal hyparamters.
 """
 
 lead_machine_learning_engineer_system_message = f"""
@@ -448,8 +455,8 @@ Do not generate any code.
 Plan the Machine Learning part of the pipeline.
 Provide a clear unambigious step by step instruction to junior machine learning engineer to write the code.
 
-Always suggest first run a smaller experiment to first decide on hyperparameters and make sure to optimize the batchsize for best/faster training and 
-then proceed to complete model finetuning.
+{experimentation_guidelines}
+
 
 {training_code_guideline}
 """
@@ -507,7 +514,7 @@ class MachineLearningEngineer():
             Use 'APPROVED' to indicate final approval of a plan or results.
             Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation.""",
             code_execution_config=False,
-            human_input_mode="NEVER"
+            #human_input_mode=""
             )
         self.lead_machine_learning_engineer = create_agent("LeadMachineLearningEngineer", system_message=lead_machine_learning_engineer_system_message, llm_config=gpt4_config)
         self.junior_machine_learning_engineer = create_agent("JuniorMachineLearningEngineer", system_message =  junior_machine_learning_engineer_system_message, llm_config = claude_config)
@@ -539,7 +546,7 @@ class MachineLearningEngineer():
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
 
     def initiate_chat(self):
-        prompt = f"""Data Engineering execution journal:
+        prompt = f"""Planning Journal:
         {self.execution_journal}
         
         Tree of Thoughts Plan:
@@ -575,9 +582,9 @@ if __name__ == "__main__":
     try:
         planner = InitialPlanner(problem_statement=message)
         plan = planner.get_planner_summary()
-        data_engineer = DataEngineer(problem_statement=plan,executor=monster_executor)
-        data_engineering_execution_journal = data_engineer.get_planner_summary()
-        ml_engineer = MachineLearningEngineer(problem_statement=data_engineering_execution_journal,tree_of_thougts_plan=planner.tree_of_throughts_plan,executor=monster_executor)
+        #data_engineer = DataEngineer(problem_statement=plan,executor=monster_executor)
+        #data_engineering_execution_journal = data_engineer.get_planner_summary()
+        ml_engineer = MachineLearningEngineer(problem_statement=plan,tree_of_thougts_plan=planner.tree_of_throughts_plan,executor=monster_executor)
     except KeyboardInterrupt as e:
         #autogen.runtime_logging.stop()
         pass

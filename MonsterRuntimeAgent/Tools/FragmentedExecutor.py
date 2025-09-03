@@ -62,7 +62,7 @@ class DataPrep():
             )
         )
         self.data_prep_problem_statement = self.extract_dataprep_problem_statement()
-        self.client = MonsterNeoCodeRuntimeClient(container_type="cpu", cpu_count=2, memory = 8)
+        self.client = MonsterNeoCodeRuntimeClient(container_type="gpu", cpu_count=8, memory = 16)
         self.monster_executor = MonsterRemoteCommandLineCodeExecutor(client=self.client)
         self.data_journal = self.perform_groupchat_to_solve_data_prep()
 

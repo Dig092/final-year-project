@@ -6,7 +6,6 @@ from google.generativeai.types import GenerationConfig
 from MonsterRuntimeAgent.Tools.Gemini import GeminiContentGenerator
 from MonsterRuntimeAgent.Tools.NetScraper import retreive_from_internet
 
-
 import operator
 from typing import Annotated
 from typing_extensions import TypedDict
@@ -25,23 +24,23 @@ print("It is a test!")
 ideation_prompt = """
                   I have a problem related to Machine Learning 
                   here is the problem:{input}.
-                  Act as a ML Engineer and plan to solve the problem.
+                  Act as a Kaggle Grandmaster and plan to solve the problem.
                   Come up with suitable methods to solve the problem.
                   Ideate the main approach.
                   For example for the iris-flowers datasets [decision tree classifiers, SVM classifiers, Perceptron with softmax and corss entropy] is a valid list of ideas.
                   Just the name of various ways to approach the problem is enough.
                   Do not generate code just plan how to solve the problem.
-                  Generate a comma separated list of between 3 ideas on how to solve the problem.
+                  Generate a comma separated list of between 4 ideas on how to solve the problem.
                   """
 
 expansion_prompt = """
                   I have a problem related to Machine Learning.
                   Here is an idea to solve the problem {idea}.
-                  Act as a Lead AI scientist and plan the problem.
+                  Act as a Lead AI scientist and plan the problem. It should be planned such that it can use GPU for faster processing and pytorch based implementation.
                   consider the following factors below.
                   Factors : {perfect_factors}
                   create a detailed plan on how to solve the problem.
-                  do not generate any code.
+                  Do not generate any code.
                   """
 
 evaluation_prompt = """ Given Below are a list of ideas on how to solve the problem.

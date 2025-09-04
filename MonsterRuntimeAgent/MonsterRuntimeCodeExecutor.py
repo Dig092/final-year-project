@@ -440,7 +440,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                             if exit_code != 0:
                                 error_output = self._parse_errors(logs_all, lang) or ""  # Ensure error_output is always a string
                                 if error_output == 'No errors detected. Execution was successful.':
-                                    error_output = "Most Probably execution got killed for OOM, also do check for any indent error!"
+                                    error_output = "Read through the execution log and figure out what went wrong."
                             
                     
                             logger.info(f"Job {job_id} completed with exit code {exit_code}\n detailed_status: {status}")

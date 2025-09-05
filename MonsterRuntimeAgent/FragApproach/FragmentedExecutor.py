@@ -1,5 +1,5 @@
 from MonsterRuntimeAgent.Tools.Gemini import GeminiContentGenerator
-from MonsterRuntimeAgent.Tools.MultiStageExecutor import DataEngineer
+from MonsterRuntimeAgent.FragApproach.MultiStageExecutor import DataEngineer
 from MonsterRuntimeAgent.Tools.ExperimentationModel import ExperimentPlanner
 from MonsterRuntimeAgent.Tools.RuntimeTools import MonsterNeoCodeRuntimeClient
 from MonsterRuntimeAgent.MonsterRuntimeCodeExecutor import MonsterRemoteCommandLineCodeExecutor
@@ -87,36 +87,63 @@ class DataPrep():
 
 class ExperimentationRecord(BaseModel):
     id: int = Field(description = "Incremental integer experiment ID increment with each experiment.")
+    experiment_name: str = Field(description = "Short descriptive name for the experiment.")
     experiment_problem_statement: str = Field(description = "Problem statement being tackled by this specific experiment.")
     success: bool = Field(description = "True/False whether the iteration is successfull of failed")
     experiment_outcome: str = Field(description = "Detailed outcome of experiment if experiment has succeeded, if failed error and possible resolution.")
 
-class ExperimentationController():
+class ProblemStatement(BaseModel):
+    experiment_name: str = Field(description = "Short descriptive name for the experiment.")
+    experiment_problem_statement: str = Field(description = "Problem statement being tackled by this specific experiment.")
+
+class ExperimentFlow:
     def __init__(self, problem_statement: str = EXAMPLE_INPUT):
-        #self.data_prep_handler = DataPrep(problem_statement = problem_statement)
-        self.tot_plan = self.create_tot_plan()
-        self.experimentation_list = []
+        self.original_problem_statement = problem_statement
+        self.generator = GeminiContentGenerator(
+        generation_config=GenerationConfig(
+            temperature=0.7,
+            top_p=0.8,
+            top_k=40,
+            )
+        )
+        self.experiments_list = []
 
-    def create_tot_plan(self):
-        planner =  ExperimentPlanner()
-        tot_plan = planner.plan_from_prompt(prompt=self.problem_statement)
-        return tot_plan
+    def get_next_problem_statement(self):
+        if len(self.experiments_list) == 0:
+            last_experiment_info = f"""
+            Original Problem Statement:  
+            {self.original_problem_statement}  
+    
+            This is the First experiment, 
+            suggest a small scale first step experiment variation to team to considering original problem statement.
+            establish working code without error from dataloading to saving model along with proper metric logging e.t.c! 
+            Assume dataprep is already handled"""
+        else:
+            last_experiment = self.experiments_list[-1]
+            last_experiment_info = f"""
+            Original Problem Statement: 
+            {self.original_problem_statement}
 
-    def get_next_experimentation_problem_statement(self):
-        upgraded_prompt = """
-        original problem statement: {self.problem_statement}
+            Previous Experiment Performed:
+            id:{ExperimentationRecord.id}
 
-        consider data prep and download has already happened
+            experiment_problem_statement: {ExperimentationRecord.experiment_problem_statement}
+            
+            success/Failure: {ExperimentationRecord.sucess}
 
-        suggest a minimal first step experimentation problem statement:
-        solving dataloading running training if required for few minibatches 
-        optimize and find the maximum batch size for limited time experiment
-        Saving the output model
-        """
+            experiment_outcome: {ExperimentationRecord.experiment_outcome}
+
+            Assume dataprep is already handled
+
+            consider this info and suggest a proper next step complete problem statement encompassing all required information for the agent following to execute.
+            """
+
+        experiment = self.generator.generate_structured_content(last_experiment_info, ProblemStatement)
+        return experiment
 
 
 
 if __name__ == "__main__":
     #dp = DataPrep()
-    ec = ExperimentationController()
+    ef = ExperimentFlow()
     import pdb;pdb.set_trace()

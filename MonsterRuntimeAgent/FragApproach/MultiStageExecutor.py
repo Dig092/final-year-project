@@ -168,83 +168,6 @@ def retrieve_from_scratchpad(query:str)->str:
         return "\n\n".join(doc.page_content for doc in docs)
     return (retriever | format_docs).invoke(query)
 
-class InitialPlanner():
-    def __init__(self, problem_statement):
-        self.original_problem_statement = problem_statement
-        self.tree_of_throughts_plan = self.create_tot_problem_statement()
-        self.create_required_agents()
-        self.register_function_calls()
-        self.setup_groupchat()
-        self.initiate_chat()
-
-    def create_tot_problem_statement(self) -> str:
-        planner =  ExperimentPlanner()
-        tot_plan = planner.plan_from_prompt(prompt=self.original_problem_statement)
-        return tot_plan
-
-    def create_required_agents(self):
-        """
-        Planner, lead scientist and critic
-        """
-        self.admin =  autogen.UserProxyAgent(
-            name="Admin",
-            system_message="""A human admin. Interact with the planner, critic and scientist to discuss the plan. Plan execution needs to be approved by this admin.
-            Use 'APPROVED' to indicate final approval of a plan or results.
-            Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation. End with summarizer summarizing the solution""",
-            code_execution_config=False,
-            human_input_mode="NEVER"
-            )
-        self.user_proxy =  autogen.UserProxyAgent(
-            name="user_proxy",
-            system_message="""user proxy  to perform require function calls to aid scientist.""",
-            code_execution_config=False,
-            human_input_mode="NEVER"
-        )
-        self.planner = create_agent("Planner", system_message=plannerphase_planner_system_message, llm_config=gpt4_config)
-        self.critic = create_agent("Critic", system_message = plannerphase_critic_system_message, llm_config = claude_config)
-        self.lead_scientist = create_agent("LeadScientist", system_message=pannerphase_lead_scientist_system_message, llm_config = claude_config)
-        self.summarizer = create_agent("Summarizer", system_message="Summarize plan in detail along with refined problem statement solutions to follow and other critical conclusions from this planning group session dont include.", llm_config = claude_config)
-    
-    def register_function_calls(self):
-        autogen.register_function(retreive_from_internet, caller=self.lead_scientist, executor=self.user_proxy, name="retreive_from_internet", description="Search internet and find context from internet.")
-
-    def setup_groupchat(self):
-        self.groupchat = autogen.GroupChat(
-        agents=[self.user_proxy, self.planner, self.lead_scientist, self.critic, self.summarizer],
-        messages=[],
-        max_round=10,
-        select_speaker_message_template = """You are in a role play game. The following roles are available:
-                    {roles}.
-                    Read the following conversation.
-                    Then select the next role from {agentlist} to play. Only return the role. Always trigger summarizer only the end of task.""",
-        select_speaker_prompt_template = "Read the above conversation. Then select the next role from {agentlist} to play. Only return the role."
-        )
-        self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
-
-    def initiate_chat(self):
-        self.user_proxy.initiate_chat(self.manager, message=str(self.tree_of_throughts_plan))
-
-    def get_planner_summary(self):
-        history = self.manager.chat_messages_for_summary(self.summarizer)
-        planning_summary = ""
-        for i in history:
-            add_to_scratchpad(i)
-            if "name" in i and i["name"].lower() == "summarizer" and i["content"] != None:
-                planning_summary += i["content"]
-                break
-            else:
-                pass
-        if planning_summary == "":
-            print("Cannot parse plan summary!")
-        upgraded_prompt = f"""
-        Tree of thoughts plan:
-        {self.tree_of_throughts_plan}
-
-        Planning phase summary:
-        {planning_summary}
-        """
-        return upgraded_prompt
-
 data_management_guidelines = """
 Dataset Management Guidelines:
     - Download Location:
@@ -464,7 +387,7 @@ Always Remember:
 """
 
 class MachineLearningEngineer():
-    def __init__(self, problem_statement,tree_of_thougts_plan,executor):
+    def __init__(self, problem_statement, tree_of_thougts_plan, executor):
         self.execution_journal = problem_statement
         self.tree_of_thoughts_plan = tree_of_thougts_plan
         self.executor = executor
@@ -477,7 +400,7 @@ class MachineLearningEngineer():
         
         self.admin =  autogen.UserProxyAgent(
             name="Admin",
-            system_message="""A human admin. Interact with the ML engineer to trin your model. 
+            system_message="""A human admin. Interact with the ML engineer to train your model. 
             Plan execution needs to be approved by this admin.
             Use 'APPROVED' to indicate final approval of a plan or results.
             Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation.""",

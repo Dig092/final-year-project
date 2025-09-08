@@ -71,11 +71,13 @@ class DataPrep():
         Original Problem: {self.problem_statement}
 
         Considering above problem generate a problem statement to perform required intial data prep.
-        Involing only download, minimal transformation.
+        Involving only download, minimal transformation.
 
         Make sure to perform any transformation inline with python execution.
 
-        Make sure to include download instruction if you know any.
+        Make sure to include download instruction if you know any. 
+
+        Also include about dataset information like size, type e.t.c 
         """
         experiment = self.generator.generate_structured_content(updated_prompt, DataPrepModel)
         experiment_json = experiment.model_dump_json()

@@ -252,7 +252,7 @@ data_summarizer_system_message = f"""
 Summarize the execution details of Data engineers. This data processing pipeline summary will be used by machine Leaning Engineers to train or finetune models.
 
 Make sure to include:
-1. The final working code and related information that represents data processing pipeline.
+1. The final working code and related information that represents data processing pipeline. Give final code that can be used to load the dataset, remove code that involving downloading e.t.c if data processing stage is successfull.
 3. Details about how the data is loaded and where it is stored it's variable name etc,. 
 4. A list of errors and exceptions to be avoided while accessing or using the dataset.
 """

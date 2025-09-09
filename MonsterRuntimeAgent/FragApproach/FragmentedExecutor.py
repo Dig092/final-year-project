@@ -1,5 +1,5 @@
 from MonsterRuntimeAgent.Tools.Gemini import GeminiContentGenerator
-from MonsterRuntimeAgent.FragApproach.MultiStageExecutor import DataEngineer
+from MonsterRuntimeAgent.FragApproach.MultiStageExecutor import DataEngineer, MachineLearningEngineer
 from MonsterRuntimeAgent.Tools.ExperimentationModel import ExperimentPlanner
 from MonsterRuntimeAgent.Tools.RuntimeTools import MonsterNeoCodeRuntimeClient
 from MonsterRuntimeAgent.MonsterRuntimeCodeExecutor import MonsterRemoteCommandLineCodeExecutor
@@ -110,6 +110,33 @@ class ExperimentFlow:
         )
         self.experiments_list = []
 
+    def create_experiment_record_and_append_to_list(self, problem_statement_model: ProblemStatement):
+        """
+        Convert a ProblemStatement model to an ExperimentationRecord and append it to experiments_list.
+        
+        Args:
+            problem_statement_model (ProblemStatement): The problem statement model to convert
+            
+        Returns:
+            None: Updates self.experiments_list in place
+        """
+        # Get the next ID based on the last experiment in the list
+        next_id = 1
+        if self.experiments_list:
+            next_id = self.experiments_list[-1].id + 1
+        
+        # Create new ExperimentationRecord
+        experiment_record = ExperimentationRecord(
+            id=next_id,
+            experiment_name=problem_statement_model.experiment_name,
+            experiment_problem_statement=problem_statement_model.experiment_problem_statement,
+            success=False,  # Initialize as False since experiment hasn't run yet
+            experiment_outcome="Experiment not yet executed"  # Initial status
+        )
+        
+        # Append to experiments list
+        self.experiments_list.append(experiment_record)
+
     def get_next_problem_statement(self):
         if len(self.experiments_list) == 0:
             last_experiment_info = f"""
@@ -141,11 +168,17 @@ class ExperimentFlow:
             """
 
         experiment = self.generator.generate_structured_content(last_experiment_info, ProblemStatement)
+        self.create_experiment_record_and_append_to_list(experiment)
         return experiment
+
 
 
 
 if __name__ == "__main__":
     #dp = DataPrep()
+    client = MonsterNeoCodeRuntimeClient(container_type="gpu", cpu_count=16, memory = 32)
+    monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
     ef = ExperimentFlow()
+    problem_statement = ef.get_next_problem_statement()
+    mle_obj = ml_engineer = MachineLearningEngineer(problem_statement = problem_statement, executor=monster_executor)
     import pdb;pdb.set_trace()

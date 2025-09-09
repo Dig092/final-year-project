@@ -387,9 +387,8 @@ Always Remember:
 """
 
 class MachineLearningEngineer():
-    def __init__(self, problem_statement, tree_of_thougts_plan, executor):
-        self.execution_journal = problem_statement
-        self.tree_of_thoughts_plan = tree_of_thougts_plan
+    def __init__(self, problem_statement, executor):
+        self.problem_statement = problem_statement
         self.executor = executor
         self.create_required_agents()
         self.register_function_calls()
@@ -435,13 +434,7 @@ class MachineLearningEngineer():
         self.manager = autogen.GroupChatManager(groupchat=self.groupchat, llm_config=gpt4_config)
 
     def initiate_chat(self):
-        prompt = f"""Data Engineering execution journal:
-        {self.execution_journal}
-        
-        Tree of Thoughts Plan:
-        {self.tree_of_thoughts_plan}
-        """
-        self.admin.initiate_chat(self.manager, message=prompt)
+        self.admin.initiate_chat(self.manager, message=self.problem_statement)
 
 
 

@@ -143,6 +143,9 @@ class ExperimentFlow:
             last_experiment_info = f"""
             Original Problem Statement:  
             {self.original_problem_statement}  
+
+            Data access instructions: 
+            {self.dataprep_obj.data_journal}
     
             This is the First experiment, 
             suggest a small scale first step experiment variation to team to considering original problem statement.
@@ -153,6 +156,9 @@ class ExperimentFlow:
             last_experiment_info = f"""
             Original Problem Statement: 
             {self.original_problem_statement}
+
+            Data access instructions: 
+            {self.dataprep_obj.data_journal}
 
             Previous Experiment Performed:
             id:{ExperimentationRecord.id}

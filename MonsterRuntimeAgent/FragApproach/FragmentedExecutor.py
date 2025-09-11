@@ -176,9 +176,9 @@ class ExperimentFlow:
 
 if __name__ == "__main__":
     #dp = DataPrep()
-    client = MonsterNeoCodeRuntimeClient(container_type="gpu", cpu_count=16, memory = 32)
+    client = MonsterNeoCodeRuntimeClient(container_type="gpu", cpu_count=8, memory = 32)
     monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
     ef = ExperimentFlow()
     problem_statement = ef.get_next_problem_statement()
-    mle_obj = ml_engineer = MachineLearningEngineer(problem_statement = problem_statement, executor=monster_executor)
     import pdb;pdb.set_trace()
+    mle_obj = ml_engineer = MachineLearningEngineer(problem_statement = problem_statement.experiment_problem_statement, executor=monster_executor)

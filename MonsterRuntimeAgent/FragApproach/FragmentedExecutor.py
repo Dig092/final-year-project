@@ -101,6 +101,7 @@ class ProblemStatement(BaseModel):
 class ExperimentFlow:
     def __init__(self, problem_statement: str = EXAMPLE_INPUT):
         self.original_problem_statement = problem_statement
+        self.dataprep_obj = DataPrep(problem_statement=problem_statement)
         self.generator = GeminiContentGenerator(
         generation_config=GenerationConfig(
             temperature=0.7,

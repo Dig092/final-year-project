@@ -138,7 +138,7 @@ class ExperimentFlow:
         # Append to experiments list
         self.experiments_list.append(experiment_record)
 
-    def get_next_problem_statement(self):
+    def get_next_problem_statement(self, compute_info):
         if len(self.experiments_list) == 0:
             last_experiment_info = f"""
             Original Problem Statement:  
@@ -146,6 +146,9 @@ class ExperimentFlow:
 
             Data access instructions: 
             {self.dataprep_obj.data_journal}
+
+            Node Compute Info:
+            {compute_info}
     
             This is the First experiment, 
             suggest a small scale first step experiment variation to team to considering original problem statement.
@@ -159,6 +162,9 @@ class ExperimentFlow:
 
             Data access instructions: 
             {self.dataprep_obj.data_journal}
+
+            Node Compute Info:
+            {compute_info}
 
             Previous Experiment Performed:
             id:{ExperimentationRecord.id}
@@ -183,9 +189,14 @@ class ExperimentFlow:
 
 if __name__ == "__main__":
     #dp = DataPrep()
+    compute_info = """
+    10 cpus
+    32 GB RAM
+    A100-40GB GPU
+    """
     client = MonsterNeoCodeRuntimeClient(container_type="gpu", cpu_count=8, memory = 32)
     monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
     ef = ExperimentFlow()
-    problem_statement = ef.get_next_problem_statement()
+    problem_statement = ef.get_next_problem_statement(compute_info = compute_info)
     import pdb;pdb.set_trace()
     mle_obj = ml_engineer = MachineLearningEngineer(problem_statement = problem_statement.experiment_problem_statement, executor=monster_executor)

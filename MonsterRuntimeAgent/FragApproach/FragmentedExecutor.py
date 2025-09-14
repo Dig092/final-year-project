@@ -101,6 +101,8 @@ class ProblemStatement(BaseModel):
 class ExperimentFlow:
     def __init__(self, problem_statement: str = EXAMPLE_INPUT):
         self.original_problem_statement = problem_statement
+        self.tot_plan = self.create_tot_problem_statement()
+        import pdb;pdb.set_trace()
         self.dataprep_obj = DataPrep(problem_statement=problem_statement)
         self.generator = GeminiContentGenerator(
         generation_config=GenerationConfig(
@@ -110,6 +112,12 @@ class ExperimentFlow:
             )
         )
         self.experiments_list = []
+    
+    def create_tot_problem_statement(self) -> str:
+        planner =  ExperimentPlanner()
+        tot_plan = planner.tree_of_thoughts_plan(problem=self.original_problem_statement)
+        import pdb;pdb.set_trace()
+        return tot_plan
 
     def create_experiment_record_and_append_to_list(self, problem_statement_model: ProblemStatement):
         """

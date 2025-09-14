@@ -336,6 +336,7 @@ Code Generation Guidelines for training or finetuning a model:
     - Ensure that the code has proper logging and formatting for each iteration/epoch.
     - Make sure to choose appropriate model size based on existing data size and model size.Try to find most optimal model size. 
     - Suggest to use hyperparameters for faster convergence like momentum and iterate faster and improve with smaller experiments without deviating much from reality.
+    - Always use GPU whenever you can 
 """
 
 lead_machine_learning_engineer_system_message = f"""

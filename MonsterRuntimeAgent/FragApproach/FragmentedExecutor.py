@@ -1,8 +1,13 @@
 from MonsterRuntimeAgent.Tools.Gemini import GeminiContentGenerator
+from MonsterRuntimeAgent.Tools.Anthropic import get_structured_response
 from MonsterRuntimeAgent.FragApproach.MultiStageExecutor import DataEngineer, MachineLearningEngineer
 from MonsterRuntimeAgent.Tools.ExperimentationModel import ExperimentPlanner
 from MonsterRuntimeAgent.Tools.RuntimeTools import MonsterNeoCodeRuntimeClient
 from MonsterRuntimeAgent.MonsterRuntimeCodeExecutor import MonsterRemoteCommandLineCodeExecutor
+
+import anthropic
+
+from typing import List
 
 EXAMPLE_INPUT = """
 # Task
@@ -98,10 +103,37 @@ class ProblemStatement(BaseModel):
     experiment_name: str = Field(description = "Short descriptive name for the experiment.")
     experiment_problem_statement: str = Field(description = "Problem statement being tackled by this specific experiment.")
 
+class EachPlan(BaseModel):
+    plan_name: str = Field(description = "Short descriptive plan name for the approach of experiment")
+    plan_details: str = Field(description = "Brief description of approach to follow")
+    pros: str = Field(description = "Brief bulleted pros")
+    cons: str = Field(description = "Brief bulleted cons")
+
+class SuggestedPlans(BaseModel):
+    plans_suggested: List[EachPlan]
+
+def plan_better(problem_statement, model = "claude-3-5-sonnet-20241022", temperature = 0.2):
+    upgraded_prompt = f"""
+    Problem Statement:
+    {problem_statement}
+    """
+    return get_structured_response(
+                text=upgraded_prompt,
+                output_model=SuggestedPlans,
+                system_prompt="""
+                For given problem statement think as a ML Expert
+                Can you give me multiple not more than 4 approaches I can follow ?
+                Order them based on best possible solution and gpu friendly faster convergence.
+                Dont write code for me just plan
+                """,
+                temperature=temperature
+            )
+
+
 class ExperimentFlow:
     def __init__(self, problem_statement: str = EXAMPLE_INPUT):
         self.original_problem_statement = problem_statement
-        self.tot_plan = self.create_tot_problem_statement()
+        self.plan = plan_better(self.original_problem_statement)
         import pdb;pdb.set_trace()
         self.dataprep_obj = DataPrep(problem_statement=problem_statement)
         self.generator = GeminiContentGenerator(

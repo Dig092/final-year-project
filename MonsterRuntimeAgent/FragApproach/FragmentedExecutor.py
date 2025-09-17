@@ -112,7 +112,7 @@ class EachPlan(BaseModel):
 class SuggestedPlans(BaseModel):
     plans_suggested: List[EachPlan]
 
-def plan_better(problem_statement, model = "claude-3-5-sonnet-20241022", temperature = 0.2):
+def plan_better(problem_statement, model = "claude-3-5-sonnet-20241022", temperature = 0.2, compute_info = ""):
     upgraded_prompt = f"""
     Problem Statement:
     {problem_statement}
@@ -120,10 +120,12 @@ def plan_better(problem_statement, model = "claude-3-5-sonnet-20241022", tempera
     return get_structured_response(
                 text=upgraded_prompt,
                 output_model=SuggestedPlans,
-                system_prompt="""
+                system_prompt= f"""
                 For given problem statement think as a ML Expert
                 Can you give me multiple not more than 4 approaches I can follow ?
                 Order them based on best possible solution and gpu friendly faster convergence.
+                consider this compute info to suggest better.
+                {compute_info}
                 Dont write code for me just plan
                 """,
                 temperature=temperature
@@ -131,9 +133,10 @@ def plan_better(problem_statement, model = "claude-3-5-sonnet-20241022", tempera
 
 
 class ExperimentFlow:
-    def __init__(self, problem_statement: str = EXAMPLE_INPUT):
+    def __init__(self, problem_statement: str = EXAMPLE_INPUT, compute_info: str = ""):
         self.original_problem_statement = problem_statement
-        self.plan = plan_better(self.original_problem_statement)
+        self.compute_info = compute_info
+        self.plan = plan_better(self.original_problem_statement, compute_info = compute_info)
         import pdb;pdb.set_trace()
         self.dataprep_obj = DataPrep(problem_statement=problem_statement)
         self.generator = GeminiContentGenerator(
@@ -178,7 +181,7 @@ class ExperimentFlow:
         # Append to experiments list
         self.experiments_list.append(experiment_record)
 
-    def get_next_problem_statement(self, compute_info):
+    def get_next_problem_statement(self):
         if len(self.experiments_list) == 0:
             last_experiment_info = f"""
             Original Problem Statement:  
@@ -188,7 +191,7 @@ class ExperimentFlow:
             {self.dataprep_obj.data_journal}
 
             Node Compute Info:
-            {compute_info}
+            {self.compute_info}
     
             This is the First experiment, 
             suggest a small scale first step experiment variation to team to considering original problem statement.
@@ -236,7 +239,7 @@ if __name__ == "__main__":
     """
     client = MonsterNeoCodeRuntimeClient(container_type="gpu", cpu_count=8, memory = 32)
     monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
-    ef = ExperimentFlow()
-    problem_statement = ef.get_next_problem_statement(compute_info = compute_info)
+    ef = ExperimentFlow(compute_info = compute_info)
+    problem_statement = ef.get_next_problem_statement()
     import pdb;pdb.set_trace()
     mle_obj = ml_engineer = MachineLearningEngineer(problem_statement = problem_statement.experiment_problem_statement, executor=monster_executor)

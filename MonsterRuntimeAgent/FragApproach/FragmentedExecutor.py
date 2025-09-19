@@ -128,6 +128,7 @@ def plan_better(problem_statement, model = "claude-3-5-sonnet-20241022", tempera
                 {compute_info}
                 Dont write code for me just plan
                 """,
+                model = model,  
                 temperature=temperature
             )
 

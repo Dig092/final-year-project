@@ -137,7 +137,8 @@ class ExperimentFlow:
         self.original_problem_statement = problem_statement
         self.compute_info = compute_info
         self.plan = plan_better(self.original_problem_statement, compute_info = compute_info)
-        import pdb;pdb.set_trace()
+        self.plan_index = 0 
+        self.select_best_plan()
         self.dataprep_obj = DataPrep(problem_statement=problem_statement)
         self.generator = GeminiContentGenerator(
         generation_config=GenerationConfig(
@@ -148,10 +149,13 @@ class ExperimentFlow:
         )
         self.experiments_list = []
     
+    def select_best_plan(self):
+        self.selected_plan = self.plan.plans_suggested[self.plan_index]
+        self.plan_index += self.plan_index
+    
     def create_tot_problem_statement(self) -> str:
         planner =  ExperimentPlanner()
         tot_plan = planner.tree_of_thoughts_plan(problem=self.original_problem_statement)
-        import pdb;pdb.set_trace()
         return tot_plan
 
     def create_experiment_record_and_append_to_list(self, problem_statement_model: ProblemStatement):
@@ -187,21 +191,27 @@ class ExperimentFlow:
             Original Problem Statement:  
             {self.original_problem_statement}  
 
+            Suggested Approach:
+            {self.selected_plan}
+
             Data access instructions: 
             {self.dataprep_obj.data_journal}
 
             Node Compute Info:
             {self.compute_info}
     
-            This is the First experiment, 
-            suggest a small scale first step experiment variation to team to considering original problem statement.
-            establish working code without error from dataloading to saving model along with proper metric logging e.t.c! 
-            Assume dataprep is already handled"""
+            This is the First experiment in approach focus on establishing working end to end pipeline from data loading to saving the model.
+            Use only a subset of data to establish the code.
+            Optimize for minibatches for maximum GPU utilization. 
+            """
         else:
             last_experiment = self.experiments_list[-1]
             last_experiment_info = f"""
             Original Problem Statement: 
             {self.original_problem_statement}
+
+            Suggested Approach:
+            {self.selected_plan}
 
             Data access instructions: 
             {self.dataprep_obj.data_journal}
@@ -242,4 +252,4 @@ if __name__ == "__main__":
     ef = ExperimentFlow(compute_info = compute_info)
     problem_statement = ef.get_next_problem_statement()
     import pdb;pdb.set_trace()
-    mle_obj = ml_engineer = MachineLearningEngineer(problem_statement = problem_statement.experiment_problem_statement, executor=monster_executor)
+    mle_obj = MachineLearningEngineer(problem_statement = problem_statement.experiment_problem_statement, executor=monster_executor)

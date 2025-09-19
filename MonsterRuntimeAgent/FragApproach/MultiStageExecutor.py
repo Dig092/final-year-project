@@ -387,8 +387,21 @@ Always Remember:
 {training_code_guideline}
 """
 
+ml_summarizer_system_message = f"""
+Summarize the outcome of the experiment and also include below:
+suggestion for next step if improvement.
+
+if should be stopped say STOP
+PROCEED to proceed with current plan
+REPLAN to Proceed to next approach.
+EXIT to exit.
+
+Post summarization dont trigger summarizer again unless a update is performed.
+"""
+
 class MachineLearningEngineer():
-    def __init__(self, problem_statement, executor):
+    def __init__(self, problem_statement, executor, rounds = 70):
+        self.rounds = rounds
         self.problem_statement = problem_statement
         self.executor = executor
         self.create_required_agents()
@@ -405,12 +418,13 @@ class MachineLearningEngineer():
             Use 'APPROVED' to indicate final approval of a plan or results.
             Use 'UPDATE REQUIRED' to request changes or updates to the current plan or implementation.""",
             code_execution_config=False,
-            human_input_mode="NEVER"
+            human_input_mode="ALWAYS"
             )
         self.lead_machine_learning_engineer = create_agent("LeadMachineLearningEngineer", system_message=lead_machine_learning_engineer_system_message, llm_config=gpt4_config)
         self.junior_machine_learning_engineer = create_agent("JuniorMachineLearningEngineer", system_message =  junior_machine_learning_engineer_system_message, llm_config = claude_config)
         self.executor = autogen.UserProxyAgent(name="Executor",system_message=executor_system_message,human_input_mode="NEVER",code_execution_config={"last_n_messages": 2,"executor": self.executor},)
         self.debugger = create_agent("Debugger",system_message=ml_debugger_system_message,llm_config=claude_config)
+        self.summarizer = create_agent("Summarizer", system_message=ml_summarizer_system_message, llm_config = gpt4_config)
         self.hyperparam_tuner = create_agent("HyperParameterTuner", system_message=hyper_parameter_tuner_system_message, llm_config = claude_config)
     
     def register_function_calls(self):
@@ -423,9 +437,9 @@ class MachineLearningEngineer():
 
     def setup_groupchat(self):
         self.groupchat = autogen.GroupChat(
-        agents=[self.admin, self.lead_machine_learning_engineer, self.junior_machine_learning_engineer, self.executor,self.debugger,self.hyperparam_tuner],
+        agents=[self.admin, self.lead_machine_learning_engineer, self.junior_machine_learning_engineer, self.executor,self.debugger,self.hyperparam_tuner, self.summarizer],
         messages=[],
-        max_round=70,
+        max_round=self.rounds,
         select_speaker_message_template = """You are in a role play game. The following roles are available:
                     {roles}.
                     Read the following conversation.

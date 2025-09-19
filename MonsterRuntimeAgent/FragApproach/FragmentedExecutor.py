@@ -270,5 +270,5 @@ if __name__ == "__main__":
     monster_executor = MonsterRemoteCommandLineCodeExecutor(client=client)
     ef = ExperimentFlow(compute_info = compute_info)
     problem_statement = ef.get_next_problem_statement()
+    mle_obj = MachineLearningEngineer(problem_statement = problem_statement.experiment_problem_statement, executor=monster_executor, rounds = 30)
     import pdb;pdb.set_trace()
-    mle_obj = MachineLearningEngineer(problem_statement = problem_statement.experiment_problem_statement, executor=monster_executor)

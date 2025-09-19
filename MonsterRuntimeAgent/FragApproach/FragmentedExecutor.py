@@ -235,6 +235,24 @@ class ExperimentFlow:
             """
 
         experiment = self.generator.generate_structured_content(last_experiment_info, ProblemStatement)
+
+        updated_prompt = f"""
+        Original Problem Statement: 
+        {self.original_problem_statement}
+
+        Suggested Approach:
+        {self.selected_plan}
+
+        Data access instructions: 
+        {self.dataprep_obj.data_journal}
+
+        Node Compute Info:
+        {compute_info}
+
+        Current Problem to Solve:
+        {experiment.experiment_problem_statement}
+        """
+        experiment.experiment_problem_statement = updated_prompt
         self.create_experiment_record_and_append_to_list(experiment)
         return experiment
 

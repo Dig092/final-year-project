@@ -271,4 +271,5 @@ if __name__ == "__main__":
     ef = ExperimentFlow(compute_info = compute_info)
     problem_statement = ef.get_next_problem_statement()
     mle_obj = MachineLearningEngineer(problem_statement = problem_statement.experiment_problem_statement, executor=monster_executor, rounds = 30)
+    engineering_summary = mle_obj.get_engineering_summary()
     import pdb;pdb.set_trace()

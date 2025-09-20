@@ -451,6 +451,19 @@ class MachineLearningEngineer():
     def initiate_chat(self):
         self.admin.initiate_chat(self.manager, message=self.problem_statement)
 
+    def get_engineering_summary(self):
+        history = self.manager.chat_messages_for_summary(self.summarizer)
+        planning_summary = ""
+        for i in history:
+            add_to_scratchpad(i)
+            if "name" in i and i["name"].lower() == "summarizer" and i["content"] != "":
+                planning_summary += i["content"]
+                break
+            else:
+                pass
+        
+        return planning_summary
+
 
 
 if __name__ == "__main__":

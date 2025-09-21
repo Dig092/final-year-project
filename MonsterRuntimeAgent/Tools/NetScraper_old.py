@@ -4,9 +4,6 @@ import time
 import asyncio
 import nest_asyncio
 from crawl4ai import AsyncWebCrawler
-from anthropic import Anthropic
-import anthropic
-
 #from duckduckgo_search import AsyncDDGS
 
 from googleapiclient.discovery import build
@@ -15,7 +12,6 @@ from googleapiclient.discovery import build
 API_KEY = os.environ.get("GOOGLE_SEARCH_API_KEY")
 CSE_ID = os.environ.get("GOOGLE_SEARCH_CSE_ID") 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
 def google_search(query, max_results=5):
     """
@@ -37,82 +33,7 @@ def google_search(query, max_results=5):
 # Apply nest_asyncio to handle nested event loops
 nest_asyncio.apply()
 
-class ClaudeTokenManager:
-    def __init__(self, max_context_tokens=200_000, max_response_tokens=8192):
-        self.client = Anthropic()
-        self.max_context_tokens = max_context_tokens
-        self.max_response_tokens = max_response_tokens
-
-    def truncate_text(self, text: str, max_tokens: int) -> str:
-        """
-        Truncate text to fit within token limit, trying to preserve the most recent content.
-        """
-        # Get token count
-        token_count = self.client.count_tokens(text)
-        
-        if token_count <= max_tokens:
-            return text
-            
-        # If text is too long, truncate from the start to preserve most recent content
-        # We'll remove chunks until it fits
-        while token_count > max_tokens:
-            # Remove chunks of ~1000 characters from the start
-            text = text[1000:]
-            token_count = self.client.count_tokens(text)
-            
-        return text
-
-    async def chat_completion_request(self, system_prompt: str, prompt: str) -> str:
-        """
-        Send a chat completion request to Claude with token management.
-        
-        Args:
-            system_prompt (str): System instructions for Claude
-            prompt (str): User's message/prompt
-            
-        Returns:
-            str: Claude's response content
-        """
-        # Calculate available tokens for prompts
-        available_tokens = self.max_context_tokens - self.max_response_tokens
-        
-        # Reserve some tokens for message structure
-        structure_tokens = 100  # Buffer for message formatting
-        available_tokens -= structure_tokens
-        
-        # Split available tokens between system prompt and user prompt
-        # Prioritize the user prompt by giving it more tokens
-        system_max_tokens = int(available_tokens * 0.3)  # 30% for system
-        user_max_tokens = int(available_tokens * 0.7)    # 70% for user
-        
-        # Truncate both prompts if needed
-        truncated_system = self.truncate_text(system_prompt, system_max_tokens)
-        truncated_prompt = self.truncate_text(prompt, user_max_tokens)
-        
-        # Combine into messages format
-        messages = [
-            {
-                "role": "user",
-                "content": f"{truncated_system}\n\nHuman: {truncated_prompt}"
-            }
-        ]
-        
-        try:
-            completion = self.client.messages.create(
-                model="claude-3-5-haiku-20241022",
-                max_tokens=self.max_response_tokens,
-                messages=messages
-            )
-            return completion.content[0].text
-            
-        except anthropic.BadRequestError as e:
-            # Log the error and return a helpful message
-            print(f"Error: {e}")
-            return "The input was too long. The message has been truncated to fit within Claude's token limit."
-
-manager = ClaudeTokenManager()
-
-async def oai_chat_completion_request(system_prompt,prompt):
+async def chat_completion_request(system_prompt,prompt):
     client = OpenAI(api_key=OPENAI_API_KEY)
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -151,7 +72,7 @@ async def generate_search_query(problem_statement):
 
     prompt = f"Create a single 3-5 word search query for the following problem statement:\n\n{problem_statement}"
 
-    query = await oai_chat_completion_request(system_prompt,prompt)
+    query = await chat_completion_request(system_prompt,prompt)
     print(f"Generated Search Query: {query}")
     return query
 
@@ -197,7 +118,7 @@ async def summarize_context(content):
     Conclude your notes with [End of Notes] to indicate completion.
     """
     prompt = f"Please create a summary of this content: {content}"
-    completion = await manager.chat_completion_request(system_prompt,prompt)
+    completion = await chat_completion_request(system_prompt,prompt)
     return completion
 
 async def retrieve_answer(problem_statement, summarized_content):
@@ -222,7 +143,7 @@ async def retrieve_answer(problem_statement, summarized_content):
     Confidence score is your confidence on how relevant and accurate this answer is out of 100%. For calculation of confidence score, perform accuracy match on specific parts of the problem statement with the solution generated by you.
     """
     prompt = f"For this problem: {problem_statement}, generate a relevant solution from this context: {summarized_content}"
-    completion = await manager.chat_completion_request(system_prompt,prompt)
+    completion = await chat_completion_request(system_prompt,prompt)
     return completion
 
 async def solve_problem_with_search(problem_statement):

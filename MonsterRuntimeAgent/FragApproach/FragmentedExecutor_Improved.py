@@ -63,7 +63,7 @@ class DataPrepModel(BaseModel):
     problem_statement: str = Field(description = "Data Preparation problem statement detail include suggested code steps dataset name and all required info to download required data.")
 
 class DataPrep():
-    def __init__(self, problem_statement: str = EXAMPLE_INPUT):
+    def __init__(self, client, executor, problem_statement: str = EXAMPLE_INPUT):
         self.problem_statement = problem_statement
         self.generator = GeminiContentGenerator(
         generation_config=GenerationConfig(
@@ -73,8 +73,8 @@ class DataPrep():
             )
         )
         self.data_prep_problem_statement = self.extract_dataprep_problem_statement()
-        self.client = MonsterNeoCodeRuntimeClient(container_type="gpu", cpu_count=8, memory = 16)
-        self.monster_executor = MonsterRemoteCommandLineCodeExecutor(client=self.client)
+        self.client = client
+        self.monster_executor = executor
         self.data_journal = self.perform_groupchat_to_solve_data_prep()
 
     def extract_dataprep_problem_statement(self):
@@ -135,12 +135,16 @@ class ExperimentFlow:
         self.max_experiments = max_experiments
         self.experiments_list: List[ExperimentationRecord] = []
         
+        # Initialize execution client
+        self.client = MonsterNeoCodeRuntimeClient(container_type="gpu", cpu_count=8, memory=32)
+        self.monster_executor = MonsterRemoteCommandLineCodeExecutor(client=self.client)
+        
         # Initialize components
         self.plan = plan_better(self.original_problem_statement, compute_info=compute_info)
         self.plan_index = 0
         self.selected_plan = self.plan.plans_suggested[0]  # Start with first plan
         
-        self.dataprep_obj = DataPrep(problem_statement=problem_statement)
+        self.dataprep_obj = DataPrep(client = self.client, executor = self.monster_executor, problem_statement = problem_statement)
         self.generator = GeminiContentGenerator(
             generation_config=GenerationConfig(
                 temperature=temperature,
@@ -149,9 +153,6 @@ class ExperimentFlow:
             )
         )
         
-        # Initialize execution client
-        self.client = MonsterNeoCodeRuntimeClient(container_type="gpu", cpu_count=8, memory=32)
-        self.monster_executor = MonsterRemoteCommandLineCodeExecutor(client=self.client)
 
     def get_next_problem_statement(self) -> ProblemStatement:
         """
@@ -228,7 +229,7 @@ class ExperimentFlow:
             engineer = MachineLearningEngineer(
                 problem_statement=record.experiment_problem_statement,
                 executor=self.monster_executor,
-                rounds=30
+                rounds=20
             )
             engineering_summary = engineer.get_engineering_summary()
             
@@ -327,3 +328,4 @@ if __name__ == "__main__":
     path = f"/home/dev/MDockerRuntimeAPI/MonsterRuntimeAgent/competitions/{file_n}"
     problem_statement = open(path).read()
     eo = ExperimentFlow(problem_statement = problem_statement, compute_info = compute_info)
+    eo.run_experiments()

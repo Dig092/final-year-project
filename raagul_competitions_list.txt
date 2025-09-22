@@ -1,5 +1,0 @@
-cassava-leaf-disease-classification
-cdiscount-image-classification-challenge
-herbarium-2021-fgvc8                   
-new-york-city-taxi-fare-prediction
-plant-pathology-2020-fgvc7

@@ -104,6 +104,7 @@ async def init_chat(request: InitChatRequest, background_tasks: BackgroundTasks)
         return {"status": "Thread already running", "threadId": thread_id}
     # Initialize a new manager and store it in the thread_managers dictionary
     manager = AutogenBackendThreadManager()
+    manager.groupchat.messages.append({"content":message,"role":"user","name":"user"})
     thread_managers[thread_id] = manager
     # Run a_init_chat in the background
     background_tasks.add_task(run_init_chat_in_background, thread_id, manager, message)

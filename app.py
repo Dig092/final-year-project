@@ -114,12 +114,21 @@ async def init_chat(request: InitChatRequest, background_tasks: BackgroundTasks)
 @app.get("/events/{threadId}")
 async def get_events(threadId: str):
     manager = thread_managers.get(threadId)
-
+    
     if not manager:
         raise HTTPException(status_code=404, detail="Thread not found")
 
     # Get events asynchronously
     events = manager.get_events()
+
+    # clenup events
+    # remove all items in list where content == None or content == ""
+    try: 
+        events = [event for event in events if event["content"] != 'None' or event["content"] != ""]
+    except Exception as e:
+        pass
+    
+    # print(events)
     return events
 
 # Send user input to a specific thread

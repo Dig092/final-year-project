@@ -2,9 +2,11 @@ import logging
 import os
 import re
 import time
+import uuid
 import atexit
 import requests
 from hashlib import md5
+from datetime import datetime
 from typing import List, Union, Dict, ClassVar, Optional
 from autogen.coding import CodeBlock, LocalCommandLineCodeExecutor
 from autogen.coding.utils import silence_pip
@@ -15,8 +17,20 @@ from MonsterRuntimeAgent.Tools.RuntimeTools import MonsterNeoCodeRuntimeClient
 from requests.exceptions import ConnectionError, Timeout
 
 # Configure the logger
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# logger = logging.getLogger(__name__)
+
+logfile = '/tmp/streamneo.log'
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  
+file_handler = logging.FileHandler(logfile)
+file_handler.setLevel(logging.INFO)
+formatter = logging.Formatter('Agent Actions: %(asctime)s - NeoCodingAgent - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+# Example logging
+logger.info("This is an info message.")
 
 def trim_logs(logs, max_size=30000):
     if len(logs) <= max_size:

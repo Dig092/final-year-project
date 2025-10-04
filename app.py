@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
-from typing import List
+from typing import List, Literal
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import BackgroundTasks
 import importlib
@@ -25,6 +25,8 @@ except ImportError:
 class InitChatRequest(BaseModel):
     threadId: str
     message: str
+    mode: Literal["cpu", "gpu"]
+    container_id: str
 
 # Pydantic model for sending user input
 class UserInputRequest(BaseModel):
@@ -103,7 +105,7 @@ async def init_chat(request: InitChatRequest, background_tasks: BackgroundTasks)
     if thread_id in thread_managers:
         return {"status": "Thread already running", "threadId": thread_id}
     # Initialize a new manager and store it in the thread_managers dictionary
-    manager = AutogenBackendThreadManager()
+    manager = AutogenBackendThreadManager(mode=request.mode, continer_id=request.container_id, thread_id=thread_id)
     manager.groupchat.messages.append({"content":message,"role":"user","name":"user"})
     thread_managers[thread_id] = manager
     # Run a_init_chat in the background

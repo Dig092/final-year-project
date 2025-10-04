@@ -1,6 +1,7 @@
-pyautogen
+autogen-agentchat
+autogen-agentchat[long-context]~=0.2
 openai
-crawl4ai
+crawl4ai==0.3.731
 nest-asyncio
 google-api-python-client
 requests
@@ -13,4 +14,7 @@ langchain_openai
 langchain_anthropic
 langchain_chroma
 langchain_core
-
+pypdf
+markdownify
+google-generativeai
+vertexai

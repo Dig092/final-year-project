@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Container Management Class
 class ContainerManager:
-    def __init__(self, base_url: str, token: str, container_type: Literal["cpu", "gpu"] = "cpu", cpu_count: int = 1, memory: int = 1):
+    def __init__(self, base_url: str, token: str, container_type: Literal["cpu", "gpu"] = "cpu", cpu_count: int = 1, memory: int = 1,  container_id: str = None):
         """
         Initializes the container manager with the base URL, token, and container specs.
         :param base_url: The base URL of the API.
@@ -24,14 +24,13 @@ class ContainerManager:
         self.management_headers = {"Authorization": f"Bearer {self.token}"}
 
         if container_type == "cpu":
-            self.image = "qblockrepo/neo_agent_worker:cpu-latest"
+            self.base_url = f"https://8080-{container_id}.e2b.dev/"
+            return
         elif container_type == "gpu":
-            self.image = "qblockrepo/neo_agent_worker:gpu-latest"
-        else:
-            raise RuntimeError(f"Invalid container_type: {container_type}!")
+            self.base_url = f"https://{container_id}.monsterapi.ai/"
 
         self.runtime_info = None
-        self.create_container(container_type=container_type, cpu_count=cpu_count, memory=memory, image=self.image)
+        # self.create_container(container_type=container_type, cpu_count=cpu_count, memory=memory, image=self.image)
 
     def _handle_response(self, response):
         """
@@ -235,7 +234,7 @@ class SessionManager:
 
 # Main Client Class
 class MonsterNeoCodeRuntimeClient:
-    def __init__(self, base_url: str = "http://localhost:8000", token: str = None, container_type: Literal["cpu", "gpu"] = "cpu", cpu_count: int = 1, memory: int = 1):
+    def __init__(self, base_url: str = "http://localhost:8000", token: str = None, container_type: Literal["cpu", "gpu"] = "cpu", cpu_count: int = 1, memory: int = 1, container_id: str = None):
         """
         Initializes the Monster Neo Client with base URL and container/session management.
         """
@@ -244,7 +243,7 @@ class MonsterNeoCodeRuntimeClient:
             if not token:
                 raise RuntimeError("Please pass in token arg or set MONSTER_API_KEY_NEO env!")
 
-        self.container_manager = ContainerManager(base_url, token, container_type, cpu_count, memory)
+        self.container_manager = ContainerManager(base_url, token, container_type, cpu_count, memory, container_id=container_id)
         self.session_manager = SessionManager(self.container_manager.runtime_info)
     
     def cleanup(self, session_id):

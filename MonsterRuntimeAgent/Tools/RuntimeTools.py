@@ -24,12 +24,12 @@ class ContainerManager:
         self.management_headers = {"Authorization": f"Bearer {self.token}"}
 
         if container_type == "cpu":
-            self.base_url = f"https://8080-{container_id}.e2b.dev/"
+            self.base_url = f"https://8080-{container_id}.e2b.dev"
             return
         elif container_type == "gpu":
-            self.base_url = f"https://{container_id}.monsterapi.ai/"
+            self.base_url = f"https://{container_id}.monsterapi.ai"
 
-        self.runtime_info = None
+        self.runtime_info = {"connected_endpoint": self.base_url, "auth_token":"afcd6dd3-5657-4331-88f8-521f6569235d"}
         # self.create_container(container_type=container_type, cpu_count=cpu_count, memory=memory, image=self.image)
 
     def _handle_response(self, response):
@@ -132,7 +132,8 @@ class SessionManager:
             retries += 1
             try:
                 url = f"{self.runtime_url}/session/create"
-                response = requests.post(url, headers=self.headers)
+                response = requests.post(url, headers=self.headers, verify=False)
+                print(url, response)
                 return self._handle_response(response)
             except Exception as e:
                 time.sleep(0.2)
@@ -160,7 +161,7 @@ class SessionManager:
         """
         url = f"{self.runtime_url}/subprocess/write_code"
         payload = {"coding_session_id": coding_session_id, "filename": filename, "code": code, "workdir": workdir}
-        response = requests.post(url, headers=self.headers, json=payload)
+        response = requests.post(url, headers=self.headers, json=payload, verify=False)
         return self._handle_response(response)
 
     def run_subprocess(self, coding_session_id: str, command: str, detach: bool = False, workdir: str = None):
@@ -174,7 +175,7 @@ class SessionManager:
         """
         url = f"{self.runtime_url}/subprocess/run"
         payload = {"coding_session_id": coding_session_id, "command": command, "detach": detach, "workdir": workdir}
-        response = requests.post(url, headers=self.headers, json=payload)
+        response = requests.post(url, headers=self.headers, json=payload, verify=False)
         return self._handle_response(response)
     
     def get_file(self, coding_session_id: str, file_path: str, local_path: str):
@@ -189,7 +190,7 @@ class SessionManager:
         url = f"{self.runtime_url}/session/{coding_session_id}/files/{file_path}"
 
         # Send request to get the file from the session
-        response = requests.get(url, headers=self.headers)
+        response = requests.get(url, headers=self.headers, verify=False)
         
         # Check if the file was successfully retrieved
         if response.status_code == 200:
@@ -211,7 +212,7 @@ class SessionManager:
         :return: Logs or error if the job is not found.
         """
         url = f"{self.runtime_url}/subprocess/logs/{job_id}"
-        response = requests.get(url, headers=self.headers)
+        response = requests.get(url, headers=self.headers, verify=False)
         return self._handle_response(response)
 
     def get_job_status(self, job_id: str):
@@ -221,7 +222,7 @@ class SessionManager:
         :return: Job status or error.
         """
         url = f"{self.runtime_url}/subprocess/status/{job_id}"
-        response = requests.get(url, headers=self.headers)
+        response = requests.get(url, headers=self.headers, verify=False)
         return self._handle_response(response)
 
     def terminate_subprocess(self, job_id: str):
@@ -231,7 +232,7 @@ class SessionManager:
         :return: Success message or error.
         """
         url = f"{self.runtime_url}/subprocess/terminate/{job_id}"
-        response = requests.delete(url, headers=self.headers)
+        response = requests.delete(url, headers=self.headers, verify=False)
         return self._handle_response(response)
 
 

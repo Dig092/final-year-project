@@ -5,7 +5,7 @@ import asyncio
 import nest_asyncio
 from crawl4ai import AsyncWebCrawler
 from anthropic import Anthropic
-import anthropic
+import tiktoken
 
 #from duckduckgo_search import AsyncDDGS
 
@@ -42,36 +42,36 @@ class ClaudeTokenManager:
         self.client = Anthropic()
         self.max_context_tokens = max_context_tokens
         self.max_response_tokens = max_response_tokens
+        # Use Claude's encoding (cl100k_base is used by Claude)
+        self.encoding = tiktoken.get_encoding("cl100k_base")
+
+    def count_tokens(self, text: str) -> int:
+        """
+        Count tokens in text using tiktoken with Claude's encoding
+        """
+        return len(self.encoding.encode(text))
 
     def truncate_text(self, text: str, max_tokens: int) -> str:
         """
         Truncate text to fit within token limit, trying to preserve the most recent content.
         """
         # Get token count
-        token_count = self.client.count_tokens(text)
+        token_count = self.count_tokens(text)
         
         if token_count <= max_tokens:
             return text
             
         # If text is too long, truncate from the start to preserve most recent content
-        # We'll remove chunks until it fits
         while token_count > max_tokens:
             # Remove chunks of ~1000 characters from the start
             text = text[1000:]
-            token_count = self.client.count_tokens(text)
+            token_count = self.count_tokens(text)
             
         return text
 
     async def chat_completion_request(self, system_prompt: str, prompt: str) -> str:
         """
         Send a chat completion request to Claude with token management.
-        
-        Args:
-            system_prompt (str): System instructions for Claude
-            prompt (str): User's message/prompt
-            
-        Returns:
-            str: Claude's response content
         """
         # Calculate available tokens for prompts
         available_tokens = self.max_context_tokens - self.max_response_tokens
@@ -81,7 +81,6 @@ class ClaudeTokenManager:
         available_tokens -= structure_tokens
         
         # Split available tokens between system prompt and user prompt
-        # Prioritize the user prompt by giving it more tokens
         system_max_tokens = int(available_tokens * 0.3)  # 30% for system
         user_max_tokens = int(available_tokens * 0.7)    # 70% for user
         
@@ -105,9 +104,8 @@ class ClaudeTokenManager:
             )
             return completion.content[0].text
             
-        except anthropic.BadRequestError as e:
-            # Log the error and return a helpful message
-            print(f"Error: {e}")
+        except Exception as e:
+            print(f"Error during completion request: {e}")
             return "The input was too long. The message has been truncated to fit within Claude's token limit."
 
 manager = ClaudeTokenManager()

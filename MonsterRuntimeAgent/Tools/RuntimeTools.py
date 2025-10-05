@@ -91,6 +91,9 @@ class ContainerManager:
         Terminates the active container session.
         :return: JSON with the termination status.
         """
+        
+        return {}
+
         url = f"{self.base_url}/containers"
         response = requests.delete(url, headers=self.management_headers)
         logger.info(f"Terminated container: {response.json()}")

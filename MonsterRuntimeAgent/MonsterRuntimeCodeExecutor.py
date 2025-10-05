@@ -62,7 +62,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         # Add other patterns also !!!
     }
 
-    def __init__(self, client: MonsterNeoCodeRuntimeClient, *args, **kwargs):
+    def __init__(self, client: MonsterNeoCodeRuntimeClient, thread_id: str, *args, **kwargs):
         """
         Initializes the remote command line executor with the MonsterNeoCodeRuntimeClient instance.
         
@@ -72,8 +72,21 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         """
         super().__init__(*args, **kwargs)
         self.client = client
+        self.thread_id = thread_id
+        self._configure_logging()
         self.session_info = self.client.session_manager.create_session()
         atexit.register(self.cleanup)
+
+    def _configure_logging(self):
+        """
+        Configures a file-based logger specific to the thread ID.
+        """
+        log_filename = f"{self.thread_id}.log"
+        file_handler = logging.FileHandler(log_filename)
+        file_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
     def _extract_filename_from_code(self, code: str) -> Optional[str]:
         """

@@ -344,12 +344,12 @@ async def terminate_thread(threadId: str, request: Request):
         print(f"Error during cleanup: {str(e)}")
 
     # Reset globals and reload app
-    reset_globals()
-    reload_modules()
-    reinitialize_app()
+#    reset_globals()
+#    reload_modules()
+#    reinitialize_app()
 
     # Optionally, you can add a small delay to ensure everything is reset
-    await asyncio.sleep(1)
+#    await asyncio.sleep(1)
 
     return {"status": "Thread terminated and app reloaded", "threadId": threadId}
 

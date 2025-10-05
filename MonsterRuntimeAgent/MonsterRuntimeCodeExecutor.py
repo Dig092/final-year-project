@@ -511,9 +511,11 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         return CommandLineCodeResultWithArtifact(exit_code=exit_code, output=trimmed_logs + "\nError Output:" + error_output, code_file=filename, artifacts = saved_files)
 
     def cleanup(self):
-        self.client.container_manager.terminate_container()
-
-
+        # self.client.container_manager.terminate_container()
+#        self.client.session_manager.close_session(coding_session_id=self.session_info["coding_session_id"])
+        coding_session_id=self.session_info["coding_session_id"]
+        self.client.session_manager.delete_tmp(coding_session_id=coding_session_id)
+        self.client.session_manager.close_session(coding_session_id=coding_session_id)
 "" 
 # Usage Example: Working
 if __name__ == "__main__":

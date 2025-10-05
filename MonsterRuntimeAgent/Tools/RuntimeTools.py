@@ -25,7 +25,6 @@ class ContainerManager:
 
         if container_type == "cpu":
             self.base_url = f"https://8080-{container_id}.e2b.dev"
-            return
         elif container_type == "gpu":
             self.base_url = f"https://{container_id}.monsterapi.ai"
 
@@ -147,7 +146,18 @@ class SessionManager:
         :return: Success message or error.
         """
         url = f"{self.runtime_url}/session/close/{coding_session_id}"
-        response = requests.delete(url, headers=self.headers)
+        response = requests.delete(url, headers=self.headers, verify=False)
+        return self._handle_response(response)
+
+    def delete_tmp(self, coding_session_id: str):
+        """
+        Cleans up tmpdir in sandbox.
+        :param coding_session_id: The session ID.
+        :return: Output or job details.
+        """
+        url = f"{self.runtime_url}/subprocess/run"
+        payload = {"coding_session_id": coding_session_id, "command": "rm -rf /tmp/*", "detach": False, "workdir": "/"}
+        response = requests.post(url, headers=self.headers, json=payload, verify=False)
         return self._handle_response(response)
 
     def write_code(self, coding_session_id: str, filename: str, code: str, workdir: str = None):

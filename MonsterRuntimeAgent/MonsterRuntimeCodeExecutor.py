@@ -75,6 +75,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         self.thread_id = thread_id
         self._configure_logging()
         self.session_info = self.client.session_manager.create_session()
+        self.job_list = []
         atexit.register(self.cleanup)
 
     def _configure_logging(self):
@@ -451,7 +452,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 # Execute the code on the remote server
                 result = self._execute_remote(coding_session_id=session_id, command=f"{_cmd(lang)} {filename}", detach=True)
                 job_id = result.get("job_id")
-
+                self.job_list.append(job_id)
                 if job_id:
                     logger.info(f"Job {job_id} started, waiting for completion...")
                     # Poll for the job status and logs
@@ -513,10 +514,13 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
     def cleanup(self):
         # self.client.container_manager.terminate_container()
 #        self.client.session_manager.close_session(coding_session_id=self.session_info["coding_session_id"])
+        for job_id in self.job_list:
+            self.client.session_manager.terminate_subprocess(job_id=job_id)
+
         coding_session_id=self.session_info["coding_session_id"]
         self.client.session_manager.delete_tmp(coding_session_id=coding_session_id)
         self.client.session_manager.close_session(coding_session_id=coding_session_id)
-"" 
+        
 # Usage Example: Working
 if __name__ == "__main__":
     # Initialize the client with the actual base URL and token

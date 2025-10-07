@@ -32,7 +32,7 @@ logger.addHandler(file_handler)
 # Example logging
 logger.info("This is an info message.")
 
-def trim_logs(logs, max_size=30000):
+async def trim_logs(logs, max_size=30000):
     if len(logs) <= max_size:
         return logs
     
@@ -61,11 +61,10 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         "numpy": r"np\.save\(['\"](.*?)['\"]",           # Detect np.save('filename')
         # Add other patterns also !!!
     }
-
     def __init__(self, client: MonsterNeoCodeRuntimeClient, thread_id: str, *args, **kwargs):
         """
         Initializes the remote command line executor with the MonsterNeoCodeRuntimeClient instance.
-        
+
         Args:
             client (MonsterNeoCodeRuntimeClient): The client for interacting with the Monster runtime.
             *args, **kwargs: Other arguments passed to the parent LocalCommandLineCodeExecutor.
@@ -73,10 +72,18 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         super().__init__(*args, **kwargs)
         self.client = client
         self.thread_id = thread_id
-        self._configure_logging()
-        self.session_info = self.client.session_manager.create_session()
         self.job_list = []
+        self._configure_logging()
         atexit.register(self.cleanup)
+        self.session_info = None  # Placeholder for session info
+
+    async def initialize(self):
+        """
+        Asynchronous initializer to set up the session.
+        """
+        self.session_info = await self.client.session_manager.create_session()
+
+
 
     def _configure_logging(self):
         """
@@ -89,7 +96,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
-    def _extract_filename_from_code(self, code: str) -> Optional[str]:
+    async def _extract_filename_from_code(self, code: str) -> Optional[str]:
         """
         Extracts the filename from the code if a filename comment is present.
 
@@ -104,7 +111,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             return filename_match.group(1)
         return None
 
-    def _detect_language(self, code: str) -> Optional[str]:
+    async def _detect_language(self, code: str) -> Optional[str]:
         """
         Detects the programming language of the provided code using multiple heuristics.
         
@@ -243,7 +250,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         else:
             return "No errors detected. Execution was successful."
 
-    def _write_code_remote(self, coding_session_id: str, filename: str, code: str) -> None:
+    async def _write_code_remote(self, coding_session_id: str, filename: str, code: str) -> None:
         """
         Writes code to a file in the remote session's directory.
 
@@ -253,10 +260,10 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             code (str): The code to write into the file.
         """
         logger.info(f"Writing code to remote server with filename: {filename}")
-        response = self.client.session_manager.write_code(coding_session_id=coding_session_id, filename=filename, code=code)
+        response = await self.client.session_manager.write_code(coding_session_id=coding_session_id, filename=filename, code=code)
         logger.info(f"Write Code Response: {response}")
 
-    def _execute_remote(self, coding_session_id: str, command: str, detach: bool = False, workdir: str = None) -> Dict[str, Union[str, int]]:
+    async def _execute_remote(self, coding_session_id: str, command: str, detach: bool = False, workdir: str = None) -> Dict[str, Union[str, int]]:
         """
         Executes a command in the remote session.
 
@@ -270,7 +277,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             Dict[str, Union[str, int]]: The result of the execution, including stdout, stderr, and exit code or job_id if detached.
         """
         logger.info(f"Executing command on remote server: {command} with detach={detach}")
-        result = self.client.session_manager.run_subprocess(coding_session_id=coding_session_id, command=command, detach=detach, workdir=workdir)
+        result = await self.client.session_manager.run_subprocess(coding_session_id=coding_session_id, command=command, detach=detach, workdir=workdir)
         return result
 
     def _get_job_logs(self, job_id: str) -> Dict[str, str]:
@@ -286,7 +293,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         logger.info(f"Fetching logs for job_id: {job_id}")
         return self.client.session_manager.get_job_logs(job_id=job_id)
 
-    def _parse_errors(self, logs: str, language: str) -> str:
+    async def _parse_errors(self, logs: str, language: str) -> str:
         """
         Parses the logs for errors specific to the language.
 
@@ -322,7 +329,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         else:
             return "No errors detected. Execution was successful."
     
-    def _find_output_files(self, code: str) -> List[str]:
+    async def _find_output_files(self, code: str) -> List[str]:
         """
         Finds file paths that are likely to be saved in the code by searching for common
         file-saving functions such as plt.savefig, cv2.imwrite, np.save, etc.
@@ -341,7 +348,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 found_files.extend(matches)
         return found_files
 
-    def _retrieve_output_files(self, session_id: str, output_files: List[str]) -> List[str]:
+    async def _retrieve_output_files(self, session_id: str, output_files: List[str]) -> List[str]:
         """
         Retrieves files from the remote session and saves them locally.
 
@@ -365,7 +372,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 logger.error(f"Error retrieving file {file}: {e}")
         return saved_files
 
-    def execute_code_blocks(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
+    async def execute_code_blocks(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
         logs_all = ""  # Ensure logs_all is always a string
         exit_code = 0
         filename = None
@@ -390,7 +397,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                         raise
             
             for code_block in code_blocks:
-                lang = self._detect_language(code_block.code)
+                lang = await self._detect_language(code_block.code)
                 if lang == None:
                     # error = """
                     # Couldnt detect either bash or python code.
@@ -400,11 +407,11 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     logger.error(error)
                     return CommandLineCodeResult(exit_code=1, output=error)
 
-                filename = self._extract_filename_from_code(code_block.code)
+                filename = await self._extract_filename_from_code(code_block.code)
                 code = code_block.code
 
                 # Detect potential output files
-                detected_files = self._find_output_files(code)
+                detected_files = await self._find_output_files(code)
                 logger.info(f"Detected output files: {detected_files}")
 
                 #if "pip" in code:
@@ -447,17 +454,17 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 
                 logger.info(f"Processing code block for language: {lang} with filename: {filename}")
                 # Write the code to the remote server
-                self._write_code_remote(coding_session_id=session_id, filename=filename, code=code)
+                await self._write_code_remote(coding_session_id=session_id, filename=filename, code=code)
 
                 # Execute the code on the remote server
-                result = self._execute_remote(coding_session_id=session_id, command=f"{_cmd(lang)} {filename}", detach=True)
+                result = await self._execute_remote(coding_session_id=session_id, command=f"{_cmd(lang)} {filename}", detach=True)
                 job_id = result.get("job_id")
                 self.job_list.append(job_id)
                 if job_id:
                     logger.info(f"Job {job_id} started, waiting for completion...")
                     # Poll for the job status and logs
                     while True:
-                        status = self.client.session_manager.get_job_status(job_id)
+                        status = await self.client.session_manager.get_job_status(job_id)
                         logger.info(f"Job {job_id} status: {status['status']}")
                         if status['status'] == 'completed':
                             logs_all = ""
@@ -466,7 +473,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                             exit_code = status.get("exit_code", 0)
 
                             if exit_code != 0:
-                                error_output = self._parse_errors(logs_all, lang) or ""  # Ensure error_output is always a string
+                                error_output = await self._parse_errors(logs_all, lang) or ""  # Ensure error_output is always a string
                                 if error_output == 'No errors detected. Execution was successful.':
                                     error_output = "Read through the execution log and figure out what went wrong."
                             
@@ -474,7 +481,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                             logger.info(f"Job {job_id} completed with exit code {exit_code}\n detailed_status: {status}")
                             break
                         elif status['status'] == 'running':
-                            logs = self._get_job_logs(job_id)
+                            logs = await self._get_job_logs(job_id)
                             stdout_logs = logs.get("stdout", "") or ""  # Ensure no NoneType
                             stderr_logs = logs.get("stderr", "") or ""  # Ensure no NoneType
                             print(stdout_logs, end="")
@@ -494,7 +501,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 
                 # Retrieve any detected files from the code
                 if detected_files:
-                    saved_files += self._retrieve_output_files(session_id, detected_files)
+                    saved_files += await self._retrieve_output_files(session_id, detected_files)
 
         except Exception as e:
             logger.error(f"Error during code execution: {e}")
@@ -508,7 +515,7 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     logger.info(f"Session {session_id} closed successfully.")
                 except Exception as e:
                     logger.error(f"Error closing session: {e}")
-        trimmed_logs = trim_logs(logs_all)
+        trimmed_logs = await trim_logs(logs_all)
         return CommandLineCodeResultWithArtifact(exit_code=exit_code, output=trimmed_logs + "\nError Output:" + error_output, code_file=filename, artifacts = saved_files)
 
     def cleanup(self):

@@ -97,7 +97,9 @@ class ContainerManager:
         response = requests.delete(url, headers=self.management_headers)
         logger.info(f"Terminated container: {response.json()}")
         return self._handle_response(response)
-
+import aiohttp
+import asyncio
+import async_timeout
 
 # Session Management Class
 class SessionManager:
@@ -110,57 +112,61 @@ class SessionManager:
         self.token = runtime_info["auth_token"]
         self.headers = {"Authorization": f"Bearer {self.token}"}
 
-    def _handle_response(self, response):
+    async def _handle_response(self, response):
         """
         Handles API response, raising an error for non-success statuses.
-        :param response: The HTTP response object.
+        :param response: The aiohttp response object.
         :return: The JSON content of the response if successful.
         """
-        if response.status_code in [200, 201]:
-            return response.json()
+        if response.status in [200, 201]:
+            return await response.json()
         else:
             response.raise_for_status()
 
-    def create_session(self):
+    async def create_session(self):
         """
         Creates a new coding session.
         :return: The session information.
         """
         retries = 0
-        while retries < 10:
-            retries += 1
-            try:
-                url = f"{self.runtime_url}/session/create"
-                response = requests.post(url, headers=self.headers, verify=False)
-                print(url, response)
-                return self._handle_response(response)
-            except Exception as e:
-                time.sleep(0.2)
+        async with aiohttp.ClientSession() as session:
+            while retries < 10:
+                retries += 1
+                try:
+                    async with async_timeout.timeout(5):
+                        url = f"{self.runtime_url}/session/create"
+                        async with session.post(url, headers=self.headers, ssl=False) as response:
+                            print(url, response.status)
+                            return await self._handle_response(response)
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    await asyncio.sleep(0.2)
 
         raise RuntimeError("Cannot Create Session!")
 
-    def close_session(self, coding_session_id: str):
+    async def close_session(self, coding_session_id: str):
         """
         Closes a coding session by its ID.
         :param coding_session_id: The ID of the session to close.
         :return: Success message or error.
         """
-        url = f"{self.runtime_url}/session/close/{coding_session_id}"
-        response = requests.delete(url, headers=self.headers, verify=False)
-        return self._handle_response(response)
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.runtime_url}/session/close/{coding_session_id}"
+            async with session.delete(url, headers=self.headers, ssl=False) as response:
+                return await self._handle_response(response)
 
-    def delete_tmp(self, coding_session_id: str):
+    async def delete_tmp(self, coding_session_id: str):
         """
         Cleans up tmpdir in sandbox.
         :param coding_session_id: The session ID.
         :return: Output or job details.
         """
-        url = f"{self.runtime_url}/subprocess/run"
-        payload = {"coding_session_id": coding_session_id, "command": "rm -rf /tmp/*", "detach": False, "workdir": "/"}
-        response = requests.post(url, headers=self.headers, json=payload, verify=False)
-        return self._handle_response(response)
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.runtime_url}/subprocess/run"
+            payload = {"coding_session_id": coding_session_id, "command": "rm -rf /tmp/*", "detach": False, "workdir": "/"}
+            async with session.post(url, headers=self.headers, json=payload, ssl=False) as response:
+                return await self._handle_response(response)
 
-    def write_code(self, coding_session_id: str, filename: str, code: str, workdir: str = None):
+    async def write_code(self, coding_session_id: str, filename: str, code: str, workdir: str = None):
         """
         Writes code to a file in the session's working directory.
         :param coding_session_id: The session ID.
@@ -169,12 +175,13 @@ class SessionManager:
         :param workdir: The working directory (optional).
         :return: Success message or error.
         """
-        url = f"{self.runtime_url}/subprocess/write_code"
-        payload = {"coding_session_id": coding_session_id, "filename": filename, "code": code, "workdir": workdir}
-        response = requests.post(url, headers=self.headers, json=payload, verify=False)
-        return self._handle_response(response)
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.runtime_url}/subprocess/write_code"
+            payload = {"coding_session_id": coding_session_id, "filename": filename, "code": code, "workdir": workdir}
+            async with session.post(url, headers=self.headers, json=payload, ssl=False) as response:
+                return await self._handle_response(response)
 
-    def run_subprocess(self, coding_session_id: str, command: str, detach: bool = False, workdir: str = None):
+    async def run_subprocess(self, coding_session_id: str, command: str, detach: bool = False, workdir: str = None):
         """
         Runs a subprocess in the session.
         :param coding_session_id: The session ID.
@@ -183,12 +190,13 @@ class SessionManager:
         :param workdir: The working directory (optional).
         :return: Output or job details.
         """
-        url = f"{self.runtime_url}/subprocess/run"
-        payload = {"coding_session_id": coding_session_id, "command": command, "detach": detach, "workdir": workdir}
-        response = requests.post(url, headers=self.headers, json=payload, verify=False)
-        return self._handle_response(response)
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.runtime_url}/subprocess/run"
+            payload = {"coding_session_id": coding_session_id, "command": command, "detach": detach, "workdir": workdir}
+            async with session.post(url, headers=self.headers, json=payload, ssl=False) as response:
+                return await self._handle_response(response)
     
-    def get_file(self, coding_session_id: str, file_path: str, local_path: str):
+    async def get_file(self, coding_session_id: str, file_path: str, local_path: str):
         """
         Retrieves a file from the session's working directory and saves it locally.
         
@@ -197,54 +205,57 @@ class SessionManager:
         :param local_path: The local path where the file will be saved.
         :return: A message indicating success or failure.
         """
-        url = f"{self.runtime_url}/session/{coding_session_id}/files/{file_path}"
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.runtime_url}/session/{coding_session_id}/files/{file_path}"
 
-        # Send request to get the file from the session
-        response = requests.get(url, headers=self.headers, verify=False)
-        
-        # Check if the file was successfully retrieved
-        if response.status_code == 200:
-            # Save the file to the specified local path
-            with open(local_path, "wb") as file:
-                file.write(response.content)
-            return f"File saved successfully to {local_path}"
-        elif response.status_code == 404:
-            raise FileNotFoundError("File or session not found")
-        elif response.status_code == 401:
-            raise PermissionError("Unauthorized access to the session files")
-        else:
-            response.raise_for_status()
+            # Send request to get the file from the session
+            async with session.get(url, headers=self.headers, ssl=False) as response:
+                # Check if the file was successfully retrieved
+                if response.status == 200:
+                    # Save the file to the specified local path
+                    content = await response.read()
+                    async with aiofiles.open(local_path, "wb") as file:
+                        await file.write(content)
+                    return f"File saved successfully to {local_path}"
+                elif response.status == 404:
+                    raise FileNotFoundError("File or session not found")
+                elif response.status == 401:
+                    raise PermissionError("Unauthorized access to the session files")
+                else:
+                    response.raise_for_status()
 
-    def get_job_logs(self, job_id: str):
+    async def get_job_logs(self, job_id: str):
         """
         Fetches logs for a specific job.
         :param job_id: The job ID.
         :return: Logs or error if the job is not found.
         """
-        url = f"{self.runtime_url}/subprocess/logs/{job_id}"
-        response = requests.get(url, headers=self.headers, verify=False)
-        return self._handle_response(response)
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.runtime_url}/subprocess/logs/{job_id}"
+            async with session.get(url, headers=self.headers, ssl=False) as response:
+                return await self._handle_response(response)
 
-    def get_job_status(self, job_id: str):
+    async def get_job_status(self, job_id: str):
         """
         Fetches the status of a job.
         :param job_id: The job ID.
         :return: Job status or error.
         """
-        url = f"{self.runtime_url}/subprocess/status/{job_id}"
-        response = requests.get(url, headers=self.headers, verify=False)
-        return self._handle_response(response)
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.runtime_url}/subprocess/status/{job_id}"
+            async with session.get(url, headers=self.headers, ssl=False) as response:
+                return await self._handle_response(response)
 
-    def terminate_subprocess(self, job_id: str):
+    async def terminate_subprocess(self, job_id: str):
         """
         Terminates a running subprocess by its job ID.
         :param job_id: The job ID.
         :return: Success message or error.
         """
-        url = f"{self.runtime_url}/subprocess/terminate/{job_id}"
-        response = requests.delete(url, headers=self.headers, verify=False)
-        return self._handle_response(response)
-
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.runtime_url}/subprocess/terminate/{job_id}"
+            async with session.delete(url, headers=self.headers, ssl=False) as response:
+                return await self._handle_response(response)
 
 # Main Client Class
 class MonsterNeoCodeRuntimeClient:

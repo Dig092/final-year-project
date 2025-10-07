@@ -51,13 +51,13 @@ def reload_modules():
         print("Warning: Unable to reload AutogenBackendThreadManager. Make sure RuntimeManager.py is in the correct location.")
         AutogenBackendThreadManager = None
 
-async def run_init_chat_in_background(thread_id, manager, message):
-    try:
-        # Run the async init_chat function
-        await manager.a_init_chat(message)
-    finally:
-        # Ensure cleanup by removing the manager from thread_managers after completion
-        thread_managers.pop(thread_id, None)
+# async def run_init_chat_in_background(thread_id, manager, message):
+#     try:
+#         # Run the async init_chat function
+#         await manager.a_init_chat(message)
+#     finally:
+#         # Ensure cleanup by removing the manager from thread_managers after completion
+#         thread_managers.pop(thread_id, None)
 
 
 # Function to reinitialize the FastAPI app
@@ -91,25 +91,62 @@ async def root():
     return {"message": "Hello, World!"}
 
 # Initialize a new chat for a given threadId
+# @app.post("/init-chat")
+# async def init_chat(request: InitChatRequest, background_tasks: BackgroundTasks):
+#     # Check if AutogenBackendThreadManager is available
+#     if AutogenBackendThreadManager is None:
+#         raise HTTPException(status_code=500, detail="AutogenBackendThreadManager is not available")
+#     thread_id = request.threadId
+#     message = request.message
+#     # Validate request parameters
+#     if not thread_id or not message:
+#         raise HTTPException(status_code=400, detail="Missing 'threadId' or 'message' in request")
+#     # Check if the thread is already running
+#     if thread_id in thread_managers:
+#         return {"status": "Thread already running", "threadId": thread_id}
+#     # Initialize a new manager and store it in the thread_managers dictionary
+#     manager = AutogenBackendThreadManager(mode=request.mode, continer_id=request.container_id, thread_id=thread_id)
+#     manager.groupchat.messages.append({"content":message,"role":"user","name":"user"})
+#     thread_managers[thread_id] = manager
+#     # Run a_init_chat in the background
+#     background_tasks.add_task(run_init_chat_in_background, thread_id, manager, message)
+#     return {"status": "Chat initialized successfully", "threadId": thread_id}
+
+async def run_init_chat_in_background(thread_id, manager, message):
+    try:
+        await manager.a_init_chat(message)
+    except Exception as e:
+        print(f"Error in chat initialization: {str(e)}")
+    finally:
+        if thread_id in thread_managers:
+            # Only remove if it's still the same manager instance
+            if thread_managers[thread_id] == manager:
+                thread_managers.pop(thread_id, None)
+
 @app.post("/init-chat")
 async def init_chat(request: InitChatRequest, background_tasks: BackgroundTasks):
-    # Check if AutogenBackendThreadManager is available
-    if AutogenBackendThreadManager is None:
-        raise HTTPException(status_code=500, detail="AutogenBackendThreadManager is not available")
     thread_id = request.threadId
     message = request.message
-    # Validate request parameters
-    if not thread_id or not message:
-        raise HTTPException(status_code=400, detail="Missing 'threadId' or 'message' in request")
-    # Check if the thread is already running
     if thread_id in thread_managers:
         return {"status": "Thread already running", "threadId": thread_id}
-    # Initialize a new manager and store it in the thread_managers dictionary
-    manager = AutogenBackendThreadManager(mode=request.mode, continer_id=request.container_id, thread_id=thread_id)
-    manager.groupchat.messages.append({"content":message,"role":"user","name":"user"})
+    
+    manager = AutogenBackendThreadManager(
+        mode=request.mode,
+        continer_id=request.container_id,
+        thread_id=thread_id
+    )
+    manager.groupchat.messages.append({
+        "content": message,
+        "role": "user",
+        "name": "user"
+    })
+    
     thread_managers[thread_id] = manager
-    # Run a_init_chat in the background
-    background_tasks.add_task(run_init_chat_in_background, thread_id, manager, message)
+    
+    # Run in background task
+    task = asyncio.create_task(run_init_chat_in_background(thread_id, manager, message))
+    background_tasks.add_task(lambda: None)  # Dummy task to keep FastAPI's background tasks mechanism happy
+    
     return {"status": "Chat initialized successfully", "threadId": thread_id}
 
 # Get events for a specific thread

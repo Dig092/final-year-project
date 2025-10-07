@@ -4,6 +4,7 @@ import re
 import time
 import uuid
 import atexit
+import asyncio
 import requests
 from hashlib import md5
 from datetime import datetime
@@ -516,18 +517,37 @@ class MonsterRemoteCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 except Exception as e:
                     logger.error(f"Error closing session: {e}")
         trimmed_logs = await trim_logs(logs_all)
+        
         return CommandLineCodeResultWithArtifact(exit_code=exit_code, output=trimmed_logs + "\nError Output:" + error_output, code_file=filename, artifacts = saved_files)
 
-    def cleanup(self):
-        # self.client.container_manager.terminate_container()
-#        self.client.session_manager.close_session(coding_session_id=self.session_info["coding_session_id"])
+    async def async_cleanup(self):
+        # Terminate each job in the job list
         for job_id in self.job_list:
-            self.client.session_manager.terminate_subprocess(job_id=job_id)
+            try:
+                await self.client.session_manager.terminate_subprocess(job_id=job_id)
+            except Exception as e:
+                print(f"Error terminating subprocess {job_id}: {e}")
 
-        coding_session_id=self.session_info["coding_session_id"]
-        self.client.session_manager.delete_tmp(coding_session_id=coding_session_id)
-        self.client.session_manager.close_session(coding_session_id=coding_session_id)
-        
+        # Clean up temporary files and close session
+        try:
+            coding_session_id = self.session_info.get("coding_session_id")
+            if coding_session_id:
+                await self.client.session_manager.delete_tmp(coding_session_id=coding_session_id)
+                await self.client.session_manager.close_session(coding_session_id=coding_session_id)
+        except Exception as e:
+            print(f"Error in session cleanup: {e}")
+
+    def cleanup(self):
+        # Run the async cleanup function in an event loop
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If the loop is already running, schedule the async cleanup
+            loop.create_task(self.async_cleanup())
+        else:
+            # Otherwise, run the cleanup in a new event loop
+            asyncio.run(self.async_cleanup())
+
+
 # Usage Example: Working
 if __name__ == "__main__":
     # Initialize the client with the actual base URL and token

@@ -167,8 +167,13 @@ async def get_events(threadId: str):
     except Exception as e:
         pass
     
+    filtered_events = [
+        event for event in events 
+        if not (event.get("name") == "Executor" and "tool_responses" in event)
+    ]
+
     # print(events)
-    return events
+    return filtered_events
 
 # Send user input to a specific thread
 @app.post("/send-user-input/{threadId}")

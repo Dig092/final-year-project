@@ -371,12 +371,7 @@ async def terminate_thread(threadId: str, request: Request):
     
     # Clean up resources
     try:
-        if hasattr(manager, 'terminate_thread'):
-            manager.terminate_thread()
-        elif hasattr(manager, 'cleanup'):
-            await manager.cleanup()
-        else:
-            print(f"Warning: No termination or cleanup method found for thread {threadId}")
+        manager.terminate_thread()
     except Exception as e:
         print(f"Error during cleanup: {str(e)}")
 

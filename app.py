@@ -170,6 +170,7 @@ async def get_events(threadId: str):
     filtered_events = [
         event for event in events 
         if not (event.get("name") == "Executor" and "tool_responses" in event)
+        and event.get("content")  # Exclude events with empty "content"
     ]
 
     # print(events)

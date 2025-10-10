@@ -106,7 +106,7 @@ class ClaudeTokenManager:
             
         except Exception as e:
             print(f"Error during completion request: {e}")
-            return "The input was too long. The message has been truncated to fit within Claude's token limit."
+            return "Truncated the message."
 
 manager = ClaudeTokenManager()
 

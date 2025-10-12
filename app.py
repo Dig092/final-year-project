@@ -16,9 +16,9 @@ thread_managers = {}
 
 # Attempt to import AutogenBackendThreadManager
 try:
-    from RuntimeManager import AutogenBackendThreadManager
+    from RuntimeManager2 import AutogenBackendThreadManager
 except ImportError:
-    print("Warning: Unable to import AutogenBackendThreadManager. Make sure RuntimeManager.py is in the correct location.")
+    print("Warning: Unable to import AutogenBackendThreadManager. Make sure RuntimeManager2.py is in the correct location.")
     AutogenBackendThreadManager = None
 
 # Pydantic model for initializing chat request body
@@ -42,13 +42,13 @@ def reset_globals():
 def reload_modules():
     global AutogenBackendThreadManager
     try:
-        if 'RuntimeManager' in sys.modules:
-            importlib.reload(sys.modules['RuntimeManager'])
+        if 'RuntimeManager2' in sys.modules:
+            importlib.reload(sys.modules['RuntimeManager2'])
         else:
-            import RuntimeManager
-        from RuntimeManager import AutogenBackendThreadManager
+            import RuntimeManager2
+        from RuntimeManager2 import AutogenBackendThreadManager
     except ImportError:
-        print("Warning: Unable to reload AutogenBackendThreadManager. Make sure RuntimeManager.py is in the correct location.")
+        print("Warning: Unable to reload AutogenBackendThreadManager. Make sure RuntimeManager2.py is in the correct location.")
         AutogenBackendThreadManager = None
 
 # async def run_init_chat_in_background(thread_id, manager, message):
@@ -203,7 +203,7 @@ async def user_input_required(threadId: str):
     return {"threadId": threadId, "user_input_required": input_required}
 
 IGNORED_FILES = {
-    "MonsterRuntimeAgent", "OAI_CONFIG_LIST_EXAMPLE", "RuntimeManager.py", "app.py",
+    "MonsterRuntimeAgent", "OAI_CONFIG_LIST_EXAMPLE", "RuntimeManager2.py", "app.py",
     "monster_dockerapi", "scripts", "tmp", "worker_app", "OAI_CONFIG_LIST",
     "Readme.MD", "__pycache__", "description_obfuscated.md", "run.py",
     "setup.py", "venv"

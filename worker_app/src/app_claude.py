@@ -20,7 +20,7 @@ app = FastAPI(
 # Global management for sessions and jobs
 sessions = {}  # coding_session_id -> list of directories
 temp_dirs = {}  # job_id -> PersistentTemporaryDirectory object
-MAX_SESSIONS = 5  # Limit to 5 sessions per user
+MAX_SESSIONS = 5000  # Limit to 5 sessions per user
 
 class JobStatus(BaseModel):
     job_id: str = Field(..., description="Unique identifier for the job")
@@ -63,29 +63,62 @@ class PersistentTemporaryDirectory:
         self._temp_dir.cleanup()
 
 async def read_stream(stream: asyncio.streams.StreamReader, job_id: str, stream_name: str):
-    while True:
-        line = await stream.readline()
-        if not line:
-            break
-        line_str = line.decode().strip()
-        jobs[job_id].logs[stream_name] += line_str + "\n"
+    try:
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            line_str = line.decode(errors='replace').strip()
+            jobs[job_id].logs[stream_name] += line_str + "\n"
+    except Exception as e:
+        print(f"Error reading {stream_name} for job {job_id}: {str(e)}")
+        jobs[job_id].logs[stream_name] += f"\nError reading stream: {str(e)}\n"
 
 async def run_command(command: str, work_dir: str, job_id: str):
-    process = await asyncio.create_subprocess_shell(
-        command,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        cwd=work_dir
-    )
+    print(f"Starting run_command for job_id: {job_id}")
+    print(f"Command: {command}")
+    print(f"Working directory: {work_dir}")
     
-    jobs[job_id] = JobInfo(process=process)
-    
-    stdout_task = asyncio.create_task(read_stream(process.stdout, job_id, "stdout"))
-    stderr_task = asyncio.create_task(read_stream(process.stderr, job_id, "stderr"))
-    
-    await process.wait()
-    await stdout_task
-    await stderr_task
+    try:
+        process = await asyncio.create_subprocess_shell(
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=work_dir,
+            limit=1024 * 1024  # 1MB buffer for PyTorch output
+        )
+        
+        print(f"Created process with PID: {process.pid}")
+        
+        jobs[job_id] = JobInfo(
+            process=process,
+            logs={"stdout": "", "stderr": ""}
+        )
+        
+        stdout_task = asyncio.create_task(read_stream(process.stdout, job_id, "stdout"))
+        stderr_task = asyncio.create_task(read_stream(process.stderr, job_id, "stderr"))
+        
+        try:
+            await asyncio.gather(
+                process.wait(),
+                stdout_task,
+                stderr_task
+            )
+            print(f"Process {process.pid} completed for job_id: {job_id}")
+            
+        except asyncio.CancelledError:
+            print(f"Process {process.pid} being cancelled for job_id: {job_id}")
+            try:
+                process.terminate()
+                await asyncio.wait_for(process.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                process.kill()
+            raise
+            
+    except Exception as e:
+        print(f"Error in run_command for job {job_id}: {str(e)}")
+        if job_id in jobs:
+            jobs[job_id].logs["stderr"] += f"\nCommand execution error: {str(e)}\n"
 
 @app.post("/session/create", response_model=dict, status_code=201)
 def create_session(_ = Depends(user_auth_dependency)):
@@ -101,15 +134,21 @@ def create_session(_ = Depends(user_auth_dependency)):
 
 @app.delete("/session/close/{coding_session_id}", response_model=dict, status_code=200)
 def close_session(coding_session_id: str, _ = Depends(user_auth_dependency)):
+    """
+    Close the specified coding session and clean up any associated resources.
+    
+    - Returns 200 if the session is successfully closed.
+    - Returns 404 if the session ID is not found.
+    - Returns 401 if unauthorized.
+    """
     if coding_session_id in sessions:
-        for workdir in sessions[coding_session_id]:
-            if workdir in temp_dirs:
-                temp_dirs[workdir].cleanup()
-                del temp_dirs[workdir]
+        temp_dirs[coding_session_id].cleanup()
+        del temp_dirs[coding_session_id]
         del sessions[coding_session_id]
         return {"coding_session_id": coding_session_id, "status": "closed"}
     else:
         raise HTTPException(status_code=404, detail="Session ID not found")
+
 
 @app.post("/subprocess/write_code", response_model=dict, status_code=200)
 async def write_code(request: CodeRequest, _ = Depends(user_auth_dependency)):
